@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
 import { formatPrice } from '../services/productService';
+import { useAuth } from '../context/AuthContext';
+import { LogIn } from 'lucide-react';
+import { compressImage } from '../utils/imageCompressor';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -60,6 +63,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   setEditingProduct
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'manage' | 'backup'>('form');
+  const { signInWithGoogle } = useAuth();
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,23 +136,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Image file upload handler (converts file to base64)
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image file upload handler (compresses file and converts to web-friendly base64)
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Image file is too large! Please choose an image under 10MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image file is too large! Please choose an image under 15MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Compress and resize for crisp display under 150KB
+      const compressed = await compressImage(file, 900, 900, 0.82);
+      setImageUrl(compressed);
+    } catch (err) {
+      console.warn('Image compression fallback:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImageUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -262,14 +273,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
 
         {/* Database Status Banner */}
-        <div className="px-5 py-2.5 bg-emerald-950/40 border-b border-emerald-900/40 flex items-center justify-between text-xs text-emerald-300">
+        <div className="px-5 py-2.5 bg-amber-950/30 border-b border-amber-900/40 flex items-center justify-between text-xs text-amber-300">
           <div className="flex items-center gap-2">
-            <Database className="w-4 h-4 text-emerald-400 shrink-0" />
+            <Database className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <strong>Server Database Active:</strong> Products are saved to <code className="bg-emerald-900/40 px-1 py-0.5 rounded font-mono text-[11px]">/data/products.json</code>. Anyone who opens the site sees your updates!
+              <strong>Firebase Firestore Active:</strong> Live cloud inventory synced on project <code className="bg-amber-900/40 px-1 py-0.5 rounded font-mono text-[11px]">united-data-x3t6m</code> (asia-southeast1).
             </span>
           </div>
-          <span className="hidden sm:inline-block font-semibold text-emerald-400">
+          <span className="hidden sm:inline-block font-semibold text-amber-400">
             {products.length} Products in Catalog
           </span>
         </div>
@@ -300,57 +311,82 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-white">Enter Owner Passcode</h3>
+              <h3 className="text-xl font-bold text-white">Owner / Admin Access</h3>
               <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-                Access product catalog manager to add, edit or delete supplements.
+                Authenticate with Google or enter shop passcode to manage supplements.
               </p>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  placeholder="Enter PIN (Default: 1234)"
-                  value={pinInput}
-                  onChange={(e) => {
-                    setPinInput(e.target.value);
-                    setPinError(false);
-                  }}
-                  className="w-full text-center tracking-widest text-lg px-4 py-3 rounded-xl bg-neutral-950 border border-neutral-700 text-white focus:outline-none focus:border-amber-500 font-mono"
-                  id="admin-pin-input"
-                  autoFocus
-                />
-                {pinError && (
-                  <p className="text-xs text-red-400 mt-1.5">
-                    Incorrect PIN. Try <strong>1234</strong> or <strong>70159</strong>
-                  </p>
-                )}
+            <div className="space-y-4">
+              {/* Google Sign In option */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await signInWithGoogle();
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow transition-colors"
+                id="admin-google-login-btn"
+              >
+                <LogIn className="w-4 h-4 text-amber-400" />
+                <span>Sign in with Google (Firebase)</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-neutral-800" />
+                <span className="text-[11px] text-neutral-500 uppercase tracking-wider font-bold">Or enter PIN</span>
+                <div className="flex-1 h-px bg-neutral-800" />
               </div>
 
-              <div className="space-y-2">
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm shadow-md transition-colors"
-                  id="admin-pin-submit-btn"
-                >
-                  Unlock Admin Panel
-                </button>
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <input
+                    type="password"
+                    placeholder="Enter PIN (Default: 1234)"
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value);
+                      setPinError(false);
+                    }}
+                    className="w-full text-center tracking-widest text-lg px-4 py-3 rounded-xl bg-neutral-950 border border-neutral-700 text-white focus:outline-none focus:border-amber-500 font-mono"
+                    id="admin-pin-input"
+                    autoFocus
+                  />
+                  {pinError && (
+                    <p className="text-xs text-red-400 mt-1.5">
+                      Incorrect PIN. Try <strong>1234</strong> or <strong>70159</strong>
+                    </p>
+                  )}
+                </div>
 
-                {/* Instant Demo Access Button */}
-                <button
-                  type="button"
-                  onClick={() => onLogin('1234')}
-                  className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition-colors"
-                  id="admin-quick-unlock-btn"
-                >
-                  Quick Unlock (Owner Test PIN: 1234)
-                </button>
-              </div>
+                <div className="space-y-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm shadow-md transition-colors"
+                    id="admin-pin-submit-btn"
+                  >
+                    Unlock with PIN
+                  </button>
 
-              <div className="text-[11px] text-neutral-400 pt-2 border-t border-neutral-800">
-                Owner Contact: +91 70159 59517 • Mandi Mor, Israna
-              </div>
-            </form>
+                  {/* Instant Demo Access Button */}
+                  <button
+                    type="button"
+                    onClick={() => onLogin('1234')}
+                    className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition-colors"
+                    id="admin-quick-unlock-btn"
+                  >
+                    Quick Unlock (Owner Test PIN: 1234)
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="text-[11px] text-neutral-400 pt-2 border-t border-neutral-800">
+              Owner Contact: +91 70159 59517 • Mandi Mor, Israna
+            </div>
           </div>
         ) : (
           /* Logged In Content */

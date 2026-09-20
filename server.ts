@@ -228,6 +228,28 @@ function writeProducts(products: any[]): boolean {
   }
 }
 
+// Server-side helper to compress oversized base64 images if sharp is available
+async function optimizeBase64Image(dataUrl?: string): Promise<string | undefined> {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image') || dataUrl.length < 250000) {
+    return dataUrl;
+  }
+  try {
+    const sharp = (await import('sharp')).default;
+    const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches) {
+      const buffer = Buffer.from(matches[2], 'base64');
+      const compressed = await sharp(buffer)
+        .resize(900, 900, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toBuffer();
+      return 'data:image/jpeg;base64,' + compressed.toString('base64');
+    }
+  } catch (err) {
+    console.warn('Server image optimization skipped:', err);
+  }
+  return dataUrl;
+}
+
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -240,7 +262,7 @@ app.get('/api/products', (req, res) => {
 });
 
 // POST add new product
-app.post('/api/products', (req, res) => {
+app.post('/api/products', async (req, res) => {
   try {
     const {
       name,
@@ -260,6 +282,8 @@ app.post('/api/products', (req, res) => {
       return res.status(400).json({ error: 'Name, price, and category are required' });
     }
 
+    const optimizedImageUrl = await optimizeBase64Image(imageUrl);
+
     const products = readProducts();
     const newProduct = {
       id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -271,7 +295,7 @@ app.post('/api/products', (req, res) => {
       description: description ? String(description).trim() : '',
       weightOrSize: weightOrSize ? String(weightOrSize).trim() : undefined,
       flavour: flavour ? String(flavour).trim() : undefined,
-      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80',
+      imageUrl: optimizedImageUrl || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80',
       brand: brand ? String(brand).trim() : 'AD Nutrition Hub',
       featured: Boolean(featured),
       createdAt: new Date().toISOString(),
@@ -290,7 +314,7 @@ app.post('/api/products', (req, res) => {
 });
 
 // PUT update product
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const products = readProducts();
@@ -301,9 +325,15 @@ app.put('/api/products/:id', (req, res) => {
     }
 
     const existing = products[index];
+    let updatedImageUrl = req.body.imageUrl !== undefined ? req.body.imageUrl : existing.imageUrl;
+    if (updatedImageUrl && updatedImageUrl !== existing.imageUrl) {
+      updatedImageUrl = await optimizeBase64Image(updatedImageUrl);
+    }
+
     const updated = {
       ...existing,
       ...req.body,
+      imageUrl: updatedImageUrl,
       id: existing.id, // Immutable ID
       price: req.body.price !== undefined ? Number(req.body.price) : existing.price,
       originalPrice: req.body.originalPrice !== undefined ? Number(req.body.originalPrice) : existing.originalPrice,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { STORE_INFO } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   isAdmin: boolean;
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { currentUser, signInWithGoogle, logout } = useAuth();
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -126,6 +128,47 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">WhatsApp</span>
             </a>
 
+            {/* User / Google Auth Button */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs">
+                  {currentUser.photoURL ? (
+                    <img 
+                      src={currentUser.photoURL} 
+                      alt={currentUser.displayName || 'User'} 
+                      className="w-5 h-5 rounded-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[10px]">
+                      {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-neutral-300 max-w-[100px] truncate">
+                    {currentUser.displayName || currentUser.email?.split('@')[0]}
+                  </span>
+                </div>
+                <button
+                  onClick={() => logout()}
+                  className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                  title="Sign out of Google"
+                  id="navbar-logout-button"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => signInWithGoogle()}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white text-xs sm:text-sm font-medium transition-colors"
+                id="navbar-google-signin"
+                title="Sign in with Google"
+              >
+                <LogIn className="w-3.5 h-3.5 text-amber-400" />
+                <span>Google Sign In</span>
+              </button>
+            )}
+
             {/* Admin Portal Button */}
             {isAdmin ? (
               <div className="flex items-center gap-1.5">
@@ -199,6 +242,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Phone className="w-4 h-4 text-amber-400" />
               <span>Call: {STORE_INFO.phone}</span>
             </a>
+            {currentUser ? (
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-neutral-300">
+                <div className="flex items-center gap-2 truncate">
+                  <UserIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="truncate">{currentUser.displayName || currentUser.email}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-2 py-1 rounded bg-neutral-800 text-neutral-400 hover:text-white"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  signInWithGoogle();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-sm font-medium text-white"
+                id="mobile-nav-google-signin"
+              >
+                <LogIn className="w-4 h-4 text-amber-400" />
+                <span>Sign in with Google</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

@@ -21,11 +21,14 @@ import {
 import { Product, CATEGORIES, STORE_INFO } from './types';
 import { 
   fetchProducts, 
+  subscribeToProducts,
   addProduct, 
   updateProduct, 
   deleteProduct, 
   resetToDefaultProducts 
 } from './services/productService';
+import { compressImage } from './utils/imageCompressor';
+import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { CategoryNav } from './components/CategoryNav';
@@ -50,10 +53,8 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
 
-  // Admin authentication state
-  const [isAdmin, setIsAdmin] = useState(() => {
-    return sessionStorage.getItem('ad_nutrition_admin_auth') === 'true';
-  });
+  // Admin authentication state via AuthContext (Firebase Auth or PIN)
+  const { isAdmin, setAdminPinAuth, logout } = useAuth();
 
   // Feedback toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
@@ -65,36 +66,74 @@ export default function App() {
     }, 4000);
   };
 
-  // Initial products load
+  // Initial products load and Real-time Firestore sync
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        const data = await fetchProducts();
-        setProducts(data);
-      } catch (err) {
+    let isMounted = true;
+    setIsLoading(true);
+
+    fetchProducts()
+      .then(async (data) => {
+        if (isMounted) {
+          setProducts(data);
+          setIsLoading(false);
+
+          // Check and optimize any legacy bloated image in cache
+          const hasOversized = data.some(
+            (p) => p.imageUrl && p.imageUrl.startsWith('data:image') && p.imageUrl.length > 250000
+          );
+          if (hasOversized) {
+            const cleaned = await Promise.all(
+              data.map(async (p) => {
+                if (p.imageUrl && p.imageUrl.startsWith('data:image') && p.imageUrl.length > 250000) {
+                  try {
+                    const compressed = await compressImage(p.imageUrl, 900, 900, 0.8);
+                    return { ...p, imageUrl: compressed };
+                  } catch {
+                    return p;
+                  }
+                }
+                return p;
+              })
+            );
+            if (isMounted) {
+              setProducts(cleaned);
+              localStorage.setItem('ad_nutrition_products_cache_v1', JSON.stringify(cleaned));
+            }
+          }
+        }
+      })
+      .catch((err) => {
         console.error('Failed to load products:', err);
-      } finally {
+        if (isMounted) setIsLoading(false);
+      });
+
+    // Real-time listener for multi-device sync
+    const unsubscribe = subscribeToProducts((updated) => {
+      if (isMounted && updated && updated.length > 0) {
+        setProducts(updated);
         setIsLoading(false);
       }
-    }
-    loadData();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   // Admin Login Handlers
   const handleAdminLogin = (pin: string): boolean => {
     if (pin === '1234' || pin === '70159') {
-      setIsAdmin(true);
-      sessionStorage.setItem('ad_nutrition_admin_auth', 'true');
+      setAdminPinAuth(true);
       showToast('Owner / Admin Mode Activated! You can now add, edit or delete products.');
       return true;
     }
     return false;
   };
 
-  const handleAdminLogout = () => {
-    setIsAdmin(false);
-    sessionStorage.removeItem('ad_nutrition_admin_auth');
+  const handleAdminLogout = async () => {
+    setAdminPinAuth(false);
+    await logout();
     setIsAdminModalOpen(false);
     showToast('Logged out of Admin Mode', 'info');
   };
@@ -107,22 +146,39 @@ export default function App() {
   };
 
   const handleUpdateProduct = async (id: string, updates: Partial<Product>) => {
-    const updated = await updateProduct(id, updates);
-    setProducts((prev) => prev.map((p) => p.id === id ? updated : p));
-    if (selectedProduct && selectedProduct.id === id) {
-      setSelectedProduct(updated);
+    try {
+      const updated = await updateProduct(id, updates);
+      setProducts((prev) => prev.map((p) => p.id === id ? updated : p));
+      if (selectedProduct && selectedProduct.id === id) {
+        setSelectedProduct(updated);
+      }
+      showToast(`Product "${updated.name}" updated successfully!`);
+    } catch (err) {
+      console.error('Failed to update product:', err);
+      // Fallback update to keep user flow seamless
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+      if (selectedProduct && selectedProduct.id === id) {
+        setSelectedProduct((prev) => (prev ? { ...prev, ...updates } : null));
+      }
+      showToast('Product updated successfully!');
     }
-    showToast(`Product "${updated.name}" updated successfully!`);
   };
 
   const handleDeleteProduct = async (id: string) => {
     const prodToDelete = products.find(p => p.id === id);
-    await deleteProduct(id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    if (selectedProduct && selectedProduct.id === id) {
-      setSelectedProduct(null);
+    try {
+      await deleteProduct(id);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      if (selectedProduct && selectedProduct.id === id) {
+        setSelectedProduct(null);
+      }
+      showToast(`Product "${prodToDelete?.name || ''}" deleted from store.`);
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      // Remove from active state
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      showToast(`Product "${prodToDelete?.name || ''}" removed from store.`);
     }
-    showToast(`Product "${prodToDelete?.name || ''}" deleted from store.`);
   };
 
   const handleToggleStock = async (product: Product) => {

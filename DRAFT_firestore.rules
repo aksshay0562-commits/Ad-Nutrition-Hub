@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'malikakshay075@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'category', 'availability', 'description', 'imageUrl']) &&
+        data.keys().hasOnly(['id', 'name', 'price', 'originalPrice', 'category', 'weightOrSize', 'flavour', 'availability', 'description', 'imageUrl', 'featured', 'brand', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 150 &&
+        data.price is number && data.price >= 0 &&
+        (!('originalPrice' in data) || (data.originalPrice is number && data.originalPrice >= 0)) &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
+        (!('weightOrSize' in data) || (data.weightOrSize is string && data.weightOrSize.size() <= 50)) &&
+        (!('flavour' in data) || (data.flavour is string && data.flavour.size() <= 50)) &&
+        (data.availability in ['In Stock', 'Out of Stock']) &&
+        data.description is string && data.description.size() <= 3000 &&
+        data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+        (!('featured' in data) || data.featured is bool) &&
+        (!('brand' in data) || (data.brand is string && data.brand.size() <= 80)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 40)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 40));
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['email', 'displayName', 'photoURL', 'role', 'createdAt']) &&
+        data.email is string && data.email.size() <= 120 &&
+        data.role in ['customer', 'admin'] &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    function isValidEnquiry(data) {
+      return data.keys().hasAll(['customerName', 'phone', 'message', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'customerName', 'phone', 'productId', 'productName', 'message', 'status', 'createdAt']) &&
+        data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 100 &&
+        data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 20 &&
+        data.message is string && data.message.size() <= 1000 &&
+        data.status in ['pending', 'responded', 'closed'] &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('productId' in data) || (data.productId is string && data.productId.size() <= 128)) &&
+        (!('productName' in data) || (data.productName is string && data.productName.size() <= 150)) &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    // Products catalog: publicly readable, writable only by verified admins
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isVerifiedAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isVerifiedAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isVerifiedAdmin() && isValidId(productId);
+    }
+
+    // User profiles: readable and writable by account owner or verified admin
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isVerifiedAdmin();
+      allow list: if isVerifiedAdmin();
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && incoming().role == 'customer';
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && (incoming().role == existing().role || isVerifiedAdmin());
+      allow delete: if isVerifiedAdmin();
+    }
+
+    // Admin authorization records
+    match /admins/{adminId} {
+      allow get, list: if isVerifiedAdmin();
+      allow create, update, delete: if isVerifiedAdmin() && isValidId(adminId);
+    }
+
+    // Customer enquiries: created by anyone/customer, readable by creator or admin
+    match /enquiries/{enquiryId} {
+      allow get: if isVerifiedAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isVerifiedAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(enquiryId) && isValidEnquiry(incoming()) && (!isSignedIn() || !('userId' in incoming()) || incoming().userId == request.auth.uid);
+      allow update, delete: if isVerifiedAdmin() && isValidId(enquiryId);
+    }
+
+    // Test connection doc for initial boot check
+    match /test/{testId} {
+      allow get: if true;
+    }
+  }
+}

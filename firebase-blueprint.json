@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Fitness and health supplement product available in the store catalog",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product title or name",
+          "minLength": 2,
+          "maxLength": 150
+        },
+        "price": {
+          "type": "number",
+          "description": "Product retail price in Indian Rupees (INR)"
+        },
+        "originalPrice": {
+          "type": "number",
+          "description": "Original MRP or struck-through price"
+        },
+        "category": {
+          "type": "string",
+          "description": "Supplement category name",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "weightOrSize": {
+          "type": "string",
+          "description": "Weight or size packaging",
+          "maxLength": 50
+        },
+        "flavour": {
+          "type": "string",
+          "description": "Flavour profile",
+          "maxLength": 50
+        },
+        "availability": {
+          "type": "string",
+          "description": "Inventory availability state",
+          "enum": ["In Stock", "Out of Stock"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of benefits, composition, and directions",
+          "maxLength": 3000
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to the product image asset or base64 data URL",
+          "maxLength": 1500000
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Whether the product is highlighted in top picks"
+        },
+        "brand": {
+          "type": "string",
+          "description": "Brand manufacturer name",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp ISO string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated timestamp ISO string"
+        }
+      },
+      "required": ["name", "price", "category", "availability", "description", "imageUrl"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account information and profile metadata",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User full or display name",
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar image URL",
+          "maxLength": 1000
+        },
+        "role": {
+          "type": "string",
+          "description": "User access role",
+          "enum": ["customer", "admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "User signup timestamp"
+        }
+      },
+      "required": ["email", "role", "createdAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authorized administrator record for role validation",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Administrator email address",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Access level",
+          "enum": ["admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Authorization timestamp"
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "Customer supplement enquiry or consultation request",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user ID if signed in"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer contact name",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "WhatsApp or calling phone number",
+          "minLength": 10,
+          "maxLength": 20
+        },
+        "productId": {
+          "type": "string",
+          "description": "Enquired product ID",
+          "maxLength": 128
+        },
+        "productName": {
+          "type": "string",
+          "description": "Enquired product name",
+          "maxLength": 150
+        },
+        "message": {
+          "type": "string",
+          "description": "Enquiry or guidance note",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "description": "Enquiry processing status",
+          "enum": ["pending", "responded", "closed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Enquiry creation timestamp"
+        }
+      },
+      "required": ["customerName", "phone", "message", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Publicly readable supplements catalog, manageable with strict schema and ID validation"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document readable and writeable by owner or admin"
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminRecord",
+      "description": "Collection of verified administrator IDs"
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": "Enquiry",
+      "description": "Customer enquiries readable by admin and the creator"
+    }
+  }
+}

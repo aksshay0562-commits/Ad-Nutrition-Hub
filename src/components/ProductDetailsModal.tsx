@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, MessageCircle, Phone, MapPin, CheckCircle2, XCircle, ShieldCheck, Zap, Share2 } from 'lucide-react';
 import { Product, STORE_INFO } from '../types';
-import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
+import { buildWhatsAppEnquiryUrl, formatPrice, submitCustomerEnquiry } from '../services/productService';
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -202,6 +202,15 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                submitCustomerEnquiry({
+                  customerName: 'Store Visitor',
+                  phone: '917015959517',
+                  message: `Interested in ${product.name} (₹${product.price})`,
+                  productId: product.id,
+                  productName: product.name,
+                }).catch(() => {});
+              }}
               className="flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-950 transition-colors"
               id="modal-order-whatsapp-btn"
             >
