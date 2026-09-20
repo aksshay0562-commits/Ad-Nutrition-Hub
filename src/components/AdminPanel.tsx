@@ -179,19 +179,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setIsSubmitting(true);
     try {
+      const parsedOriginalPrice = originalPrice ? parseFloat(originalPrice) : undefined;
+      const cleanWeight = weightOrSize.trim();
+      const cleanFlavour = flavour.trim();
+
       if (editingProduct) {
         await onUpdateProduct(editingProduct.id, {
           name: name.trim(),
           category: finalCategory,
           price: numPrice,
-          originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
           availability,
-          weightOrSize: weightOrSize.trim() || undefined,
-          flavour: flavour.trim() || undefined,
           brand: brand.trim() || 'AD Nutrition Hub',
           description: description.trim(),
           imageUrl: finalImageUrl,
-          featured
+          featured,
+          ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
+          ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
+          ...(cleanFlavour ? { flavour: cleanFlavour } : {})
         });
         setFeedbackMessage({ type: 'success', text: `Product "${name}" updated and saved permanently to server!` });
       } else {
@@ -199,14 +203,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           name: name.trim(),
           category: finalCategory,
           price: numPrice,
-          originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
           availability,
-          weightOrSize: weightOrSize.trim() || undefined,
-          flavour: flavour.trim() || undefined,
           brand: brand.trim() || 'AD Nutrition Hub',
           description: description.trim(),
           imageUrl: finalImageUrl,
-          featured
+          featured,
+          ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
+          ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
+          ...(cleanFlavour ? { flavour: cleanFlavour } : {})
         });
         setFeedbackMessage({ type: 'success', text: `New product "${name}" added and saved permanently to database!` });
       }

@@ -16,6 +16,24 @@ import { compressImage } from '../utils/imageCompressor';
 const CACHE_KEY = 'ad_nutrition_products_cache_v1';
 const PRODUCTS_COLLECTION = 'products';
 
+/**
+ * Strips out any keys with `undefined` values so Firestore setDoc / updateDoc
+ * never fails with: "Function setDoc() called with invalid data. Unsupported field value: undefined"
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+        result[key] = sanitizeForFirestore(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result as T;
+}
+
 // Seed initial products into Firestore if the collection is empty
 export async function seedInitialProductsIfEmpty(): Promise<Product[]> {
   try {
@@ -26,10 +44,10 @@ export async function seedInitialProductsIfEmpty(): Promise<Product[]> {
       const batch = writeBatch(db);
       for (const prod of INITIAL_PRODUCTS) {
         const prodRef = doc(db, PRODUCTS_COLLECTION, prod.id);
-        batch.set(prodRef, {
+        batch.set(prodRef, sanitizeForFirestore({
           ...prod,
           createdAt: prod.createdAt || new Date().toISOString()
-        });
+        }));
       }
       await batch.commit();
       return INITIAL_PRODUCTS;
@@ -139,12 +157,12 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
     }
   }
 
-  const payload: Product = {
+  const payload: Product = sanitizeForFirestore({
     ...productData,
     imageUrl: finalImageUrl,
     id: newId,
     createdAt: new Date().toISOString()
-  };
+  });
 
   // Try writing to Firestore
   try {
@@ -206,9 +224,10 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 
   // 1. Try Firestore
   let firestoreSuccess = false;
+  const sanitizedDoc = sanitizeForFirestore(fullUpdated);
   try {
     const docRef = doc(db, PRODUCTS_COLLECTION, id);
-    await setDoc(docRef, fullUpdated, { merge: true });
+    await setDoc(docRef, sanitizedDoc, { merge: true });
     firestoreSuccess = true;
   } catch (err) {
     console.warn('Firestore updateDoc/setDoc error:', err);
@@ -292,10 +311,10 @@ export async function resetToDefaultProducts(): Promise<Product[]> {
     // First clear or overwrite with initial products
     for (const prod of INITIAL_PRODUCTS) {
       const prodRef = doc(db, PRODUCTS_COLLECTION, prod.id);
-      batch.set(prodRef, {
+      batch.set(prodRef, sanitizeForFirestore({
         ...prod,
         createdAt: prod.createdAt || new Date().toISOString()
-      });
+      }));
     }
     await batch.commit();
   } catch (err) {
@@ -323,12 +342,12 @@ export async function submitCustomerEnquiry(data: {
   const enquiryId = `enq-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   try {
     const docRef = doc(db, 'enquiries', enquiryId);
-    await setDoc(docRef, {
+    await setDoc(docRef, sanitizeForFirestore({
       ...data,
       id: enquiryId,
       status: 'pending',
       createdAt: new Date().toISOString()
-    });
+    }));
     return true;
   } catch (err) {
     console.error('Error submitting enquiry to Firestore:', err);

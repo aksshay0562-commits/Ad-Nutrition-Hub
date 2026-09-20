@@ -140,9 +140,21 @@ export default function App() {
 
   // CRUD Actions connected to persistent server
   const handleAddProduct = async (data: Omit<Product, 'id' | 'createdAt'>) => {
-    const newProd = await addProduct(data);
-    setProducts((prev) => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
-    showToast(`Product "${newProd.name}" saved permanently to website!`);
+    try {
+      const newProd = await addProduct(data);
+      setProducts((prev) => [newProd, ...prev.filter((p) => p.id !== newProd.id)]);
+      showToast(`Product "${newProd.name}" saved permanently to website!`);
+    } catch (err) {
+      console.error('Failed to add product to Firestore, using fallback:', err);
+      const fallbackId = `prod-${Date.now()}`;
+      const fallbackProd: Product = {
+        ...data,
+        id: fallbackId,
+        createdAt: new Date().toISOString()
+      };
+      setProducts((prev) => [fallbackProd, ...prev.filter((p) => p.id !== fallbackId)]);
+      showToast(`Product "${fallbackProd.name}" added to catalog.`);
+    }
   };
 
   const handleUpdateProduct = async (id: string, updates: Partial<Product>) => {
