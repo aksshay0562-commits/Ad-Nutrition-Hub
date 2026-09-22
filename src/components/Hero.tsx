@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -77,16 +78,19 @@ export const Hero: React.FC<HeroProps> = ({
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <a
+              <motion.a
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.94, y: 1 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                 href={`https://wa.me/917015959517?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare me poochhna hai.')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-900/30 transition-all hover:scale-102"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-900/30 transition-colors cursor-pointer"
                 id="hero-whatsapp-enquiry-btn"
               >
                 <MessageCircle className="w-5 h-5 fill-white" />
                 <span>WhatsApp Enquiry</span>
-              </a>
+              </motion.a>
 
               <button
                 onClick={onLocationClick}

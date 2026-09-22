@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { MapPin, Phone, MessageCircle, Clock, ShieldCheck, Navigation, ExternalLink } from 'lucide-react';
 import { STORE_INFO } from '../types';
 
@@ -69,16 +70,19 @@ export const ContactSection: React.FC = () => {
                       Direct consultation, stock enquiries & fast WhatsApp orders.
                     </p>
                     <div className="flex flex-wrap gap-2 pt-3">
-                      <a
+                      <motion.a
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.94 }}
+                        transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                         href={`https://wa.me/917015959517?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
                         id="contact-whatsapp-btn"
                       >
                         <MessageCircle className="w-4 h-4 fill-white" />
                         <span>Chat on WhatsApp</span>
-                      </a>
+                      </motion.a>
                       <a
                         href={`tel:${STORE_INFO.phone}`}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold border border-neutral-700 transition-colors"

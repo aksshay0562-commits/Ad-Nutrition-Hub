@@ -17,7 +17,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAndroidModal
 }) => {
   return (
-    <footer className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
+    <footer id="app-footer" className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
       {/* Upper Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8">

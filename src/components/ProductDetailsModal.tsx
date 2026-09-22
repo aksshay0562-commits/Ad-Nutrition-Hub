@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { X, MessageCircle, Phone, MapPin, CheckCircle2, XCircle, ShieldCheck, Zap, Share2 } from 'lucide-react';
 import { Product, STORE_INFO } from '../types';
 import { buildWhatsAppEnquiryUrl, formatPrice, submitCustomerEnquiry } from '../services/productService';
@@ -198,7 +199,10 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
           {/* Action CTAs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <a
+            <motion.a
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 20 }}
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -211,12 +215,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                   productName: product.name,
                 }).catch(() => {});
               }}
-              className="flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-950 transition-colors"
+              className="flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-950 transition-colors cursor-pointer"
               id="modal-order-whatsapp-btn"
             >
               <MessageCircle className="w-5 h-5 fill-white" />
               <span>Order / Enquire on WhatsApp</span>
-            </a>
+            </motion.a>
 
             <a
               href={`tel:${STORE_INFO.phone}`}

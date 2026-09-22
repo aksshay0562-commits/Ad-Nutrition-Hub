@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag } from 'lucide-react';
 import { Product } from '../types';
 import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
@@ -155,16 +156,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Action Buttons */}
         <div className="space-y-2 mt-auto">
-          <a
+          <motion.a
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 20 }}
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-950 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-950 transition-colors cursor-pointer"
             id={`product-whatsapp-enquiry-${product.id}`}
           >
             <MessageCircle className="w-4 h-4 fill-white" />
             <span>Enquire on WhatsApp</span>
-          </a>
+          </motion.a>
 
           <button
             onClick={() => onViewDetails(product)}
