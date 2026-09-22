@@ -1,0 +1,50 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#171717"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+  <rect width="504" height="504" x="4" y="4" rx="106" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.6"/>
+
+  <!-- Subtle glow ring -->
+  <circle cx="256" cy="230" r="170" fill="url(#glowGrad)"/>
+
+  <!-- Dumbbell / Lightning Motif -->
+  <g transform="translate(256, 175)">
+    <!-- Dumbbell Bar -->
+    <rect x="-90" y="-12" width="180" height="24" rx="10" fill="#ffffff" opacity="0.9"/>
+    <!-- Center Grip Rings -->
+    <rect x="-30" y="-15" width="10" height="30" rx="3" fill="url(#goldGrad)"/>
+    <rect x="-5" y="-15" width="10" height="30" rx="3" fill="url(#goldGrad)"/>
+    <rect x="20" y="-15" width="10" height="30" rx="3" fill="url(#goldGrad)"/>
+
+    <!-- Left Plates -->
+    <rect x="-115" y="-55" width="22" height="110" rx="9" fill="url(#goldGrad)"/>
+    <rect x="-140" y="-42" width="20" height="84" rx="7" fill="#f59e0b"/>
+    <rect x="-158" y="-30" width="15" height="60" rx="5" fill="#d97706"/>
+
+    <!-- Right Plates -->
+    <rect x="93" y="-55" width="22" height="110" rx="9" fill="url(#goldGrad)"/>
+    <rect x="120" y="-42" width="20" height="84" rx="7" fill="#f59e0b"/>
+    <rect x="143" y="-30" width="15" height="60" rx="5" fill="#d97706"/>
+  </g>
+
+  <!-- Brand Typography -->
+  <text x="256" y="325" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="82" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="4">AD</text>
+  <text x="256" y="380" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="28" fill="#ffffff" text-anchor="middle" letter-spacing="6">NUTRITION</text>
+  <text x="256" y="420" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-weight="700" font-size="20" fill="#f59e0b" text-anchor="middle" letter-spacing="8">HUB ISRANA</text>
+</svg>

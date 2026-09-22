@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'motion/react';
-import { MessageCircle, X, Share2, Check, Copy, QrCode, Download, ExternalLink } from 'lucide-react';
+import { MessageCircle, X, Share2, Check, Copy, QrCode, Download, ExternalLink, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 
 interface Ripple {
@@ -17,6 +17,8 @@ export const FloatingWhatsApp: React.FC = () => {
   const [isPressing, setIsPressing] = useState(false);
   const [pressProgress, setPressProgress] = useState(0);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [isQrZoomed, setIsQrZoomed] = useState(false);
+  const [isQrHovered, setIsQrHovered] = useState(false);
   const [verticalOffset, setVerticalOffset] = useState<number>(0);
   const [ripples, setRipples] = useState<Ripple[]>([]);
 
@@ -49,6 +51,7 @@ export const FloatingWhatsApp: React.FC = () => {
   const handleQrMouseLeave = () => {
     qrTiltX.set(0);
     qrTiltY.set(0);
+    setIsQrHovered(false);
   };
 
   const whatsappUrl = `https://wa.me/917015959517?text=${encodeURIComponent(
@@ -64,6 +67,7 @@ export const FloatingWhatsApp: React.FC = () => {
 
   const storeUrl = getStoreUrl();
   const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(storeUrl)}`;
+  const qrCodeLargeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=12&data=${encodeURIComponent(storeUrl)}`;
 
   const executeCopyShareLink = async (isModal = false) => {
     const url = getStoreUrl();
@@ -189,10 +193,14 @@ export const FloatingWhatsApp: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowQrModal(false);
+        if (isQrZoomed) {
+          setIsQrZoomed(false);
+        } else {
+          setShowQrModal(false);
+        }
       }
     };
-    if (showQrModal) {
+    if (showQrModal || isQrZoomed) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
@@ -200,7 +208,7 @@ export const FloatingWhatsApp: React.FC = () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
-  }, [showQrModal]);
+  }, [showQrModal, isQrZoomed]);
 
   // Detect if the floating widget overlaps with the footer and shift vertically
   useEffect(() => {
@@ -533,11 +541,22 @@ export const FloatingWhatsApp: React.FC = () => {
               </p>
             </div>
 
-            {/* QR Code Container with Rotating Gradient-Border & Subtle 3D Tilt */}
+            {/* QR Code Container with Rotating Gradient-Border, 3D Tilt & Click-to-Zoom */}
             <div style={{ perspective: 800 }} className="inline-block mx-auto">
               <motion.div 
-                className="relative p-1 sm:p-1.5 rounded-2xl shadow-xl shadow-amber-500/20 inline-block mx-auto cursor-pointer"
+                className="relative p-1 sm:p-1.5 rounded-2xl shadow-xl shadow-amber-500/20 inline-block mx-auto cursor-zoom-in group select-none"
                 id="qr-code-image-container"
+                onClick={() => setIsQrZoomed(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setIsQrZoomed(true);
+                  }
+                }}
+                aria-label="Click to enlarge QR code to fullscreen"
+                title="Click to zoom in for easier scanning"
                 style={{
                   rotateX: qrRotateX,
                   rotateY: qrRotateY,
@@ -549,9 +568,25 @@ export const FloatingWhatsApp: React.FC = () => {
                 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                onMouseMove={handleQrMouseMove}
+                onMouseMove={(e) => {
+                  handleQrMouseMove(e);
+                  if (!isQrHovered) setIsQrHovered(true);
+                }}
+                onMouseEnter={() => setIsQrHovered(true)}
                 onMouseLeave={handleQrMouseLeave}
               >
+                {/* Soft green scan confirmation pulse aura on hover */}
+                <motion.div
+                  className="absolute -inset-2 rounded-2xl pointer-events-none -z-10 transition-opacity duration-300"
+                  style={{
+                    opacity: isQrHovered ? 1 : 0,
+                    boxShadow: '0 0 28px 4px rgba(16, 185, 129, 0.45)',
+                  }}
+                  animate={isQrHovered ? { opacity: [0.6, 1, 0.7] } : { opacity: 0 }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  aria-hidden="true"
+                />
+
                 {/* Ambient rotating glow behind border */}
                 <motion.div
                   className="absolute -inset-1.5 rounded-2xl blur-md opacity-45 pointer-events-none -z-20"
@@ -602,10 +637,10 @@ export const FloatingWhatsApp: React.FC = () => {
                   />
                 </div>
 
-                {/* Elevated white QR card */}
+                {/* Elevated white QR card with persistent glossy laminated texture */}
                 <div 
                   style={{ transform: 'translateZ(14px)' }}
-                  className="relative z-10 bg-white p-3.5 sm:p-4 rounded-xl shadow-inner flex items-center justify-center transition-transform"
+                  className="relative z-10 bg-white p-3.5 sm:p-4 rounded-xl shadow-inner flex items-center justify-center transition-transform overflow-hidden"
                 >
                   <img
                     src={qrCodeImageUrl}
@@ -613,9 +648,107 @@ export const FloatingWhatsApp: React.FC = () => {
                     className="w-48 h-48 sm:w-52 sm:h-52 object-contain block select-none"
                     loading="eager"
                   />
+
+                  {/* Persistent subtle 'glossy glass' laminated card overlay */}
+                  <div 
+                    className="absolute inset-0 pointer-events-none rounded-xl"
+                    style={{
+                      background: 'linear-gradient(130deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.16) 32%, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.04) 75%, rgba(255, 255, 255, 0.22) 100%)',
+                      boxShadow: 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06)',
+                    }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Fine diagonal glossy specular reflection streak */}
+                  <div
+                    className="absolute -inset-full pointer-events-none rotate-12 opacity-60"
+                    style={{
+                      background: 'linear-gradient(to right, transparent 35%, rgba(255, 255, 255, 0.15) 46%, rgba(255, 255, 255, 0.32) 49%, rgba(255, 255, 255, 0) 53%, transparent 65%)',
+                    }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Corner Zoom badge indicator */}
+                  <div className="absolute top-2.5 right-2.5 z-30 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[10px] text-amber-300 font-medium flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 className="w-2.5 h-2.5" />
+                    <span>Zoom</span>
+                  </div>
+
+                  {/* Scan Success Viewfinder & Reticle Animation on Hover */}
+                  <AnimatePresence>
+                    {isQrHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 1.06 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.03 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        className="absolute inset-3 pointer-events-none z-30"
+                      >
+                        {/* 4 Glowing Emerald Corner Target Reticles */}
+                        <div className="absolute top-0 left-0 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-500 rounded-tl-sm shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                        <div className="absolute top-0 right-0 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-500 rounded-tr-sm shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                        <div className="absolute bottom-0 left-0 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-500 rounded-bl-sm shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-500 rounded-br-sm shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+
+                        {/* Subtle Horizontal Scanner Laser Sweep */}
+                        <motion.div
+                          className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.95)] opacity-80"
+                          initial={{ y: 2 }}
+                          animate={{ y: [4, 155, 4] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Scan Success Confirmation Checkmark Badge on Hover */}
+                  <AnimatePresence>
+                    {isQrHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.86 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.9 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                        className="absolute bottom-2.5 inset-x-0 mx-auto w-fit z-40 px-2.5 py-1 rounded-full bg-neutral-950/92 border border-emerald-500/70 backdrop-blur-md shadow-lg shadow-emerald-950/70 flex items-center gap-1.5 pointer-events-none"
+                      >
+                        <motion.div
+                          initial={{ scale: 0, rotate: -45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: 'spring', stiffness: 600, damping: 16, delay: 0.06 }}
+                          className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-500/60"
+                        >
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </motion.div>
+                        <span className="text-[10.5px] font-semibold text-emerald-300 tracking-tight whitespace-nowrap">
+                          Verified Scannable
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+
+                {/* Persistent outer container laminated card sheen */}
+                <div
+                  className="absolute inset-0 rounded-2xl pointer-events-none z-20"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 24%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.1) 100%)',
+                    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.5)',
+                  }}
+                  aria-hidden="true"
+                />
               </motion.div>
             </div>
+
+            {/* Click to Zoom In hint button */}
+            <button
+              type="button"
+              onClick={() => setIsQrZoomed(true)}
+              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-amber-400 hover:text-amber-300 transition-colors mx-auto cursor-pointer focus:outline-none"
+              id="qr-zoom-hint-btn"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+              <span>Click QR to zoom fullscreen</span>
+            </button>
 
             {/* Store URL with Copy Button */}
             <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between gap-2 text-xs">
@@ -677,6 +810,150 @@ export const FloatingWhatsApp: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Fullscreen Zoomed QR View with Darker Background Overlay for Better Scanning */}
+      <AnimatePresence>
+        {isQrZoomed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] flex flex-col items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-md cursor-zoom-out"
+            onClick={() => setIsQrZoomed(false)}
+            id="qr-fullscreen-zoom-overlay"
+          >
+            {/* Top Bar Controls */}
+            <div 
+              className="absolute top-4 sm:top-6 left-4 right-4 sm:left-8 sm:right-8 flex items-center justify-between pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs sm:text-sm font-semibold text-neutral-200 tracking-wide">
+                  High-Clarity Scanner Mode
+                </span>
+              </div>
+              <button
+                onClick={() => setIsQrZoomed(false)}
+                className="px-3.5 py-1.5 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg"
+                id="close-qr-zoom-btn"
+                aria-label="Exit fullscreen QR mode"
+              >
+                <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Exit Fullscreen (Esc)</span>
+              </button>
+            </div>
+
+            {/* Scaled Fullscreen QR Card */}
+            <motion.div
+              initial={{ scale: 0.72, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.72, y: 15 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              className="relative p-2 sm:p-2.5 rounded-3xl shadow-2xl shadow-amber-500/30 max-w-sm sm:max-w-md w-full my-auto text-center cursor-zoom-out"
+              onClick={() => setIsQrZoomed(false)}
+            >
+              {/* Ambient rotating glow */}
+              <motion.div
+                className="absolute -inset-2 rounded-3xl blur-xl opacity-60 pointer-events-none -z-20"
+                style={{
+                  background:
+                    'conic-gradient(from 0deg, #f59e0b 0%, #fbbf24 20%, #10b981 40%, #06b6d4 60%, #fbbf24 80%, #f59e0b 100%)',
+                }}
+                animate={{ rotate: 360 }}
+                transition={{
+                  duration: 7,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+                aria-hidden="true"
+              />
+
+              {/* Rotating gradient-border mask layer with metallic sweep */}
+              <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none -z-10">
+                <motion.div
+                  className="absolute -inset-[140%] pointer-events-none"
+                  style={{
+                    background:
+                      'conic-gradient(from 0deg, #f59e0b 0%, #fbbf24 20%, #10b981 40%, #06b6d4 60%, #fbbf24 80%, #f59e0b 100%)',
+                  }}
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 7,
+                    repeat: Infinity,
+                    ease: 'linear',
+                  }}
+                  aria-hidden="true"
+                />
+                <motion.div
+                  className="absolute -inset-[80%] pointer-events-none mix-blend-screen"
+                  style={{
+                    background:
+                      'linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.1) 38%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.1) 62%, transparent 75%)',
+                  }}
+                  initial={{ x: '-120%', y: '-120%' }}
+                  animate={{ x: '120%', y: '120%' }}
+                  transition={{
+                    duration: 1.6,
+                    repeat: Infinity,
+                    repeatDelay: 3.5,
+                    ease: [0.25, 0.1, 0.25, 1],
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+
+              {/* Elevated white QR card */}
+              <div className="relative z-10 bg-white p-5 sm:p-6 rounded-2xl shadow-inner flex flex-col items-center justify-center overflow-hidden">
+                <img
+                  src={qrCodeLargeImageUrl}
+                  alt="Store QR Code Fullscreen"
+                  className="w-64 h-64 sm:w-80 sm:h-80 md:w-88 md:h-88 object-contain block select-none"
+                  loading="eager"
+                />
+
+                {/* Laminated glass overlay */}
+                <div
+                  className="absolute inset-0 pointer-events-none rounded-2xl"
+                  style={{
+                    background:
+                      'linear-gradient(130deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.16) 32%, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.04) 75%, rgba(255, 255, 255, 0.22) 100%)',
+                    boxShadow:
+                      'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06)',
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+
+              {/* Outer sheen */}
+              <div
+                className="absolute inset-0 rounded-3xl pointer-events-none z-20"
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 24%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.1) 100%)',
+                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.5)',
+                }}
+                aria-hidden="true"
+              />
+            </motion.div>
+
+            {/* Bottom Dismiss Instruction */}
+            <div className="mt-4 sm:mt-6 text-center space-y-1 pointer-events-none select-none">
+              <p className="text-sm font-semibold text-white tracking-wide">
+                AD Nutrition Hub Israna
+              </p>
+              <p className="text-xs text-neutral-400 flex items-center justify-center gap-1.5">
+                <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+                Click anywhere or press Esc to exit zoom
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

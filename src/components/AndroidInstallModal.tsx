@@ -54,10 +54,17 @@ export const AndroidInstallModal: React.FC<AndroidInstallModalProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const cliCommands = `npm run build
-npx cap add android
+  const cliCommands = `# 1. Sync any new web changes to native Android
+npm run build:android
+
+# 2. Open native Android project in Android Studio
 npx cap open android
-# In Android Studio: Build -> Build Bundle(s) / APK(s) -> Build APK(s)`;
+
+# Or build debug APK directly with Gradle:
+cd android && ./gradlew assembleDebug
+
+# Output APK path:
+# android/app/build/outputs/apk/debug/app-debug.apk`;
 
   const handleCopyCmd = () => {
     navigator.clipboard.writeText(cliCommands);
@@ -289,9 +296,9 @@ npx cap open android
               <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex items-start gap-3">
                 <Layers className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <p className="font-bold text-white text-sm">Capacitor &amp; Android Studio Setup</p>
+                  <p className="font-bold text-white text-sm">Native Android Studio Project (Ready)</p>
                   <p className="text-neutral-400">
-                    <code className="text-amber-400 font-mono">capacitor.config.json</code> is already configured in the root directory. You can export or clone the project and compile the APK in Android Studio.
+                    The native Android project has been generated in <code className="text-amber-400 font-mono">/android</code> with package <code className="text-amber-400 font-mono">com.adnutritionhub.israna</code>. You can export or clone the project and compile the APK directly in Android Studio.
                   </p>
                 </div>
               </div>
