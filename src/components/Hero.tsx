@@ -1,17 +1,20 @@
 import React from 'react';
-import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone } from 'lucide-react';
 import { STORE_INFO } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeroProps {
   onExploreClick: () => void;
   onLocationClick: () => void;
   onCategorySelect: (category: string) => void;
+  onOpenAndroidModal?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
   onExploreClick,
   onLocationClick,
-  onCategorySelect
+  onCategorySelect,
+  onOpenAndroidModal
 }) => {
   const quickCategories = [
     { label: 'Whey Protein', icon: '🥛', category: 'Whey Protein' },
@@ -93,6 +96,10 @@ export const Hero: React.FC<HeroProps> = ({
                 <MapPin className="w-4 h-4 text-amber-400" />
                 <span>Visit Store</span>
               </button>
+
+              {onOpenAndroidModal && (
+                <PWAInstallButton onOpenModal={onOpenAndroidModal} variant="hero" />
+              )}
             </div>
 
             {/* Quick Category Chips */}

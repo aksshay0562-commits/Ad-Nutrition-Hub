@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
   isAdmin: boolean;
@@ -9,6 +10,7 @@ interface NavbarProps {
   onOpenAddProduct: () => void;
   activeSection: string;
   onNavigate: (section: string) => void;
+  onOpenAndroidModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -16,7 +18,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleAdminModal,
   onOpenAddProduct,
   activeSection,
-  onNavigate
+  onNavigate,
+  onOpenAndroidModal
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
@@ -128,6 +131,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">WhatsApp</span>
             </a>
 
+            {/* Android App Button */}
+            <PWAInstallButton onOpenModal={onOpenAndroidModal || (() => {})} variant="nav" />
+
             {/* User / Google Auth Button */}
             {currentUser ? (
               <div className="flex items-center gap-2">
@@ -159,7 +165,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <button
-                onClick={() => signInWithGoogle()}
+                onClick={async () => {
+                  const ok = await signInWithGoogle();
+                  if (!ok && !currentUser) {
+                    onToggleAdminModal();
+                  }
+                }}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white text-xs sm:text-sm font-medium transition-colors"
                 id="navbar-google-signin"
                 title="Sign in with Google"
@@ -234,6 +245,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           ))}
           <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2">
+            <PWAInstallButton 
+              onOpenModal={() => {
+                setMobileMenuOpen(false);
+                onOpenAndroidModal?.();
+              }} 
+              variant="mobile" 
+            />
             <a
               href={`tel:${STORE_INFO.phone}`}
               className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-sm font-medium text-neutral-200"
@@ -260,9 +278,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <button
-                onClick={() => {
-                  signInWithGoogle();
+                onClick={async () => {
                   setMobileMenuOpen(false);
+                  const ok = await signInWithGoogle();
+                  if (!ok && !currentUser) {
+                    onToggleAdminModal();
+                  }
                 }}
                 className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-sm font-medium text-white"
                 id="mobile-nav-google-signin"

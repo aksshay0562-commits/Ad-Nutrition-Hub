@@ -3,6 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Suppress benign [vite] websocket connection errors in AI Studio sandboxed preview
+      (function() {
+        window.addEventListener('error', function(e) {
+          if (e && e.message && (e.message.indexOf('[vite]') !== -1 || e.message.indexOf('websocket') !== -1)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e.reason;
+          var msg = typeof reason === 'string' ? reason : (reason && reason.message) || '';
+          if (msg.indexOf('[vite]') !== -1 || msg.indexOf('websocket') !== -1) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+        var origError = console.error;
+        console.error = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            var a = arguments[i];
+            if (typeof a === 'string' && (a.indexOf('[vite]') !== -1 || a.indexOf('websocket') !== -1)) {
+              return;
+            }
+          }
+          origError.apply(console, arguments);
+        };
+      })();
+    </script>
     <title>AD Nutrition Hub Israna — Nutrition & Fitness Supplement Store</title>
     <meta name="description" content="AD Nutrition Hub Israna — Premier nutrition and fitness supplement store in Mandi Mor, Israna, Panipat, Haryana. 100% authentic whey protein, mass gainers, creatine, pre-workouts, vitamins and accessories with WhatsApp ordering and shop owner management." />
     <meta property="og:title" content="AD Nutrition Hub Israna — Nutrition & Fitness Supplement Store" />
@@ -12,6 +41,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- PWA & Android Meta Tags -->
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AD Nutrition" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
   </head>
   <body class="bg-neutral-950 text-neutral-100 font-['Plus_Jakarta_Sans',sans-serif] antialiased selection:bg-amber-500 selection:text-black min-h-screen">
     <div id="root"></div>

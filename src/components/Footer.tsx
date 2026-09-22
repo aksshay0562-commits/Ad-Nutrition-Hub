@@ -1,17 +1,20 @@
 import React from 'react';
-import { MapPin, Phone, MessageCircle, ShieldCheck, Lock, Unlock } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, ShieldCheck, Lock, Unlock, Smartphone } from 'lucide-react';
 import { STORE_INFO, CATEGORIES } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface FooterProps {
   onCategorySelect: (category: string) => void;
   onOpenAdmin: () => void;
   isAdmin: boolean;
+  onOpenAndroidModal?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onCategorySelect,
   onOpenAdmin,
-  isAdmin
+  isAdmin,
+  onOpenAndroidModal
 }) => {
   return (
     <footer className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
@@ -104,7 +107,10 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
           <p>© {new Date().getFullYear()} AD Nutrition Hub Israna. All Rights Reserved.</p>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {onOpenAndroidModal && (
+              <PWAInstallButton onOpenModal={onOpenAndroidModal} variant="footer" />
+            )}
             <span>Mandi Mor, Israna Supplement Shop</span>
             <span>•</span>
             <button

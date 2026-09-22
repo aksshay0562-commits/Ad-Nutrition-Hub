@@ -63,7 +63,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   setEditingProduct
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'manage' | 'backup'>('form');
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, authError } = useAuth();
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -322,15 +322,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <div className="space-y-4">
+              {/* Contextual notice if Google popup is restricted by browser / iframe sandbox */}
+              {authError && (
+                <div 
+                  className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/60 text-amber-200 text-xs text-left flex items-start gap-2.5 animate-in fade-in"
+                  id="admin-auth-error-notice"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-white">{authError}</p>
+                    <p className="text-[11px] text-neutral-400">
+                      You can instantly unlock owner mode using the <strong>Owner PIN (1234)</strong> below without needing a Google popup.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Google Sign In option */}
               <button
                 type="button"
                 onClick={async () => {
-                  try {
-                    await signInWithGoogle();
-                  } catch (e) {
-                    console.error(e);
-                  }
+                  await signInWithGoogle();
                 }}
                 className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow transition-colors"
                 id="admin-google-login-btn"

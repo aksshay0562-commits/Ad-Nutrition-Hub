@@ -38,6 +38,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { ContactSection } from './components/ContactSection';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
+import { AndroidInstallModal } from './components/AndroidInstallModal';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -50,6 +51,7 @@ export default function App() {
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
 
@@ -290,6 +292,7 @@ export default function App() {
         }}
         activeSection={activeSection}
         onNavigate={handleNavigate}
+        onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -301,6 +304,7 @@ export default function App() {
             setSelectedCategory(cat);
             handleNavigate('products');
           }}
+          onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         />
       </div>
 
@@ -632,6 +636,13 @@ export default function App() {
         }}
         onOpenAdmin={() => setIsAdminModalOpen(true)}
         isAdmin={isAdmin}
+        onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
+      />
+
+      {/* Android APK & Install Modal */}
+      <AndroidInstallModal
+        isOpen={isAndroidModalOpen}
+        onClose={() => setIsAndroidModalOpen(false)}
       />
 
       {/* Product Details Modal */}

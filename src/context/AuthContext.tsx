@@ -19,10 +19,12 @@ interface AuthContextType {
   currentUser: User | null;
   isAdmin: boolean;
   isLoading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
   adminPinAuth: boolean;
   setAdminPinAuth: (val: boolean) => void;
+  authError: string | null;
+  clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sessionStorage.getItem('ad_nutrition_admin_auth') === 'true';
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -81,13 +84,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<boolean> => {
+    setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
+      return true;
     } catch (error: any) {
-      console.error('Google Sign-In Error:', error);
-      throw error;
+      const code = error?.code || '';
+
+      // User closed the popup intentionally
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        console.info('Google Sign-In popup was closed before completion.');
+        return false;
+      }
+
+      // Browser iframe / partitioned cookie network block
+      if (code === 'auth/network-request-failed' || code === 'auth/popup-blocked') {
+        const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+        const msg = isIframe
+          ? 'Google popup was restricted by browser iframe security. Please open the app in a new tab or use the Owner PIN (1234) below.'
+          : 'Unable to connect to Google Auth. Please check your internet connection or use the Owner PIN (1234).';
+        console.warn('Google Sign-In notice:', msg);
+        setAuthError(msg);
+        return false;
+      }
+
+      // Fallback general error
+      const generalMsg = error?.message || 'Google sign-in could not be completed.';
+      console.warn('Google Sign-In notice:', generalMsg);
+      setAuthError(generalMsg);
+      return false;
     }
+  };
+
+  const clearAuthError = () => {
+    setAuthError(null);
   };
 
   const logout = async () => {
@@ -119,6 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             sessionStorage.removeItem('ad_nutrition_admin_auth');
           }
         },
+        authError,
+        clearAuthError,
       }}
     >
       {children}

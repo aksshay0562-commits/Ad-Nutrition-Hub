@@ -81,8 +81,12 @@ export async function fetchProducts(): Promise<Product[]> {
       // Empty in Firestore, seed defaults
       return await seedInitialProductsIfEmpty();
     }
-  } catch (err) {
-    console.warn('Firestore fetch error, falling back to API / cache:', err);
+  } catch (err: any) {
+    if (err?.code === 'unavailable') {
+      console.warn('Firestore offline: fetching from local cache or fallback.');
+    } else {
+      console.warn('Firestore fetch error, falling back to API / cache:', err);
+    }
   }
 
   // 2. Fallback to server API
@@ -134,6 +138,11 @@ export function subscribeToProducts(
       }
     },
     (error) => {
+      // If client is temporarily offline or reconnecting, maintain local cache
+      if ((error as any)?.code === 'unavailable') {
+        console.warn('Firestore onSnapshot operating in offline mode.');
+        return;
+      }
       console.error('Firestore onSnapshot error:', error);
       if (onError) {
         onError(error);
