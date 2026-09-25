@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'motion/react';
-import { MessageCircle, X, Share2, Check, Copy, QrCode, Download, ExternalLink, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageCircle, X, Share2, Check, Copy, QrCode, Download, ExternalLink, ZoomIn, ZoomOut, Maximize2, Minimize2, MessageSquare, Mail } from 'lucide-react';
 import { STORE_INFO } from '../types';
 
 interface Ripple {
@@ -68,6 +68,37 @@ export const FloatingWhatsApp: React.FC = () => {
   const storeUrl = getStoreUrl();
   const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(storeUrl)}`;
   const qrCodeLargeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=12&data=${encodeURIComponent(storeUrl)}`;
+
+  const smsShareMessage = `Check out AD Nutrition Hub Israna for 100% genuine supplements & best prices: ${storeUrl}`;
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const smsShareHref = isIOS
+    ? `sms:&body=${encodeURIComponent(smsShareMessage)}`
+    : `sms:?body=${encodeURIComponent(smsShareMessage)}`;
+
+  const emailSubject = `AD Nutrition Hub Israna - 100% Genuine Supplements & Store Catalog`;
+  const emailBody = `Hello,
+
+Check out AD Nutrition Hub in Mandi Mor, Israna (Panipat, Haryana) for 100% genuine fitness supplements with verified importer tags.
+
+🏪 Online Store & Catalog:
+${storeUrl}
+
+✨ Featured Categories & Products Available:
+• Whey Protein (Pure Whey & Whey Isolate)
+• Mass Gainers & Weight Gain Supplements
+• Micronized Creatine Monohydrate
+• Pre-Workout Energy Blasts
+• Daily Vitamins, Fish Oil Omega-3 & Joint Support
+
+📍 Store Address:
+${STORE_INFO.addressDetail}
+
+📞 Phone / WhatsApp Enquiry:
+${STORE_INFO.phone}
+
+Visit the online catalog or walk in to check batch verification and current in-store offers!`;
+
+  const emailShareHref = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
   const executeCopyShareLink = async (isModal = false) => {
     const url = getStoreUrl();
@@ -274,18 +305,94 @@ export const FloatingWhatsApp: React.FC = () => {
     };
   }, []);
 
+  // User inactivity tracking (10 seconds timeout for subtle scale-pulse effect)
+  const [isInactive, setIsInactive] = useState(false);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const INACTIVITY_TIMEOUT_MS = 10000; // 10 seconds of user inactivity
+
+    const resetInactivity = () => {
+      setIsInactive(false);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      inactivityTimerRef.current = setTimeout(() => {
+        setIsInactive(true);
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    // User activity events that reset the 10-second timer
+    const activityEvents = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'touchmove',
+      'scroll',
+      'wheel',
+      'click'
+    ];
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetInactivity, { passive: true });
+    });
+
+    // Start initial 10s timer on mount
+    resetInactivity();
+
+    return () => {
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetInactivity);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Scale pulse active when user is inactive, unless QR modal or hold-press is active
+  const activePulse = isInactive && !showQrModal && !isPressing;
+
   return (
     <>
-      {/* Floating Widget Container with dynamic footer avoidance and soft spring-based entry */}
+      {/* Floating Widget Container with dynamic footer avoidance, soft spring-based entry, and 10s inactivity scale-pulse */}
       <motion.div 
-        className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2 select-none pointer-events-none *:pointer-events-auto"
+        className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2 select-none pointer-events-none *:pointer-events-auto origin-bottom-right"
         initial={{ opacity: 0, y: 50, x: 20, scale: 0.88 }}
-        animate={{ opacity: 1, y: -verticalOffset, x: 0, scale: 1 }}
+        animate={{ 
+          opacity: 1, 
+          y: -verticalOffset, 
+          x: 0, 
+          scale: activePulse ? [1, 1.055, 0.99, 1.045, 1] : 1 
+        }}
         transition={{
-          type: 'spring',
-          stiffness: 260,
-          damping: 22,
-          mass: 0.85,
+          y: {
+            type: 'spring',
+            stiffness: 260,
+            damping: 22,
+            mass: 0.85,
+          },
+          x: {
+            type: 'spring',
+            stiffness: 260,
+            damping: 22,
+            mass: 0.85,
+          },
+          scale: activePulse
+            ? {
+                repeat: Infinity,
+                repeatType: 'loop',
+                duration: 2.6,
+                ease: 'easeInOut',
+              }
+            : {
+                type: 'spring',
+                stiffness: 260,
+                damping: 22,
+                mass: 0.85,
+              },
+          opacity: { duration: 0.4 }
         }}
         id="floating-whatsapp-widget"
       >
@@ -778,35 +885,66 @@ export const FloatingWhatsApp: React.FC = () => {
               </motion.button>
             </div>
 
-            {/* Action Buttons: Download QR & WhatsApp Share */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                onClick={downloadQrCode}
-                className="py-2.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                id="download-qr-image-btn"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>Save QR Image</span>
-              </motion.button>
+            {/* Action Buttons: Download QR, WhatsApp Share & Native SMS Share */}
+            <div className="space-y-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  onClick={downloadQrCode}
+                  className="py-2.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  id="download-qr-image-btn"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Save QR Image</span>
+                </motion.button>
 
-              <motion.a
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                  `Check out AD Nutrition Hub Israna for 100% genuine supplements: ${storeUrl}`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
-                id="modal-share-whatsapp-btn"
-              >
-                <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                <span>Share Link</span>
-              </motion.a>
+                <motion.a
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `Check out AD Nutrition Hub Israna for 100% genuine supplements: ${storeUrl}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
+                  id="modal-share-whatsapp-btn"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                  <span>WhatsApp</span>
+                </motion.a>
+              </div>
+
+              {/* Secondary Share Options: Native SMS Messaging & Email */}
+              <div className="grid grid-cols-2 gap-2">
+                <motion.a
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  href={smsShareHref}
+                  className="py-2.5 px-3 rounded-xl bg-neutral-800/90 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm group"
+                  id="modal-share-sms-btn"
+                  title="Send store link via SMS Text Message"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate">Share via SMS</span>
+                </motion.a>
+
+                <motion.a
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  href={emailShareHref}
+                  className="py-2.5 px-3 rounded-xl bg-neutral-800/90 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm group"
+                  id="modal-share-email-btn"
+                  title="Share store link and product catalog via Email"
+                >
+                  <Mail className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate">Share via Email</span>
+                </motion.a>
+              </div>
             </div>
           </div>
         </div>

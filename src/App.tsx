@@ -41,6 +41,7 @@ import { Footer } from './components/Footer';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
 import { ProductScannerModal } from './components/ProductScannerModal';
 import { ProductQRModal } from './components/ProductQRModal';
+import { CalculatorStackSection } from './components/CalculatorStackSection';
 import { Camera, QrCode } from 'lucide-react';
 import { triggerHaptic } from './utils/haptics';
 
@@ -393,6 +394,7 @@ export default function App() {
             handleNavigate('products');
           }}
           onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
+          onCalculatorClick={() => handleNavigate('calculator-stack')}
         />
       </div>
 
@@ -660,6 +662,12 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {/* Interactive Fitness Nutrition Calculator & Supplement Stack Builder */}
+      <CalculatorStackSection
+        products={products}
+        onViewProductDetails={(p) => setSelectedProduct(p)}
+      />
 
       {/* About & Trust Features Section */}
       <section id="about" className="py-16 bg-neutral-900/60 border-t border-neutral-800">

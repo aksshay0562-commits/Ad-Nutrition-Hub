@@ -9,13 +9,15 @@ interface HeroProps {
   onLocationClick: () => void;
   onCategorySelect: (category: string) => void;
   onOpenAndroidModal?: () => void;
+  onCalculatorClick?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
   onExploreClick,
   onLocationClick,
   onCategorySelect,
-  onOpenAndroidModal
+  onOpenAndroidModal,
+  onCalculatorClick
 }) => {
   const quickCategories = [
     { label: 'Whey Protein', icon: '🥛', category: 'Whey Protein' },
@@ -26,7 +28,7 @@ export const Hero: React.FC<HeroProps> = ({
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-neutral-900 via-neutral-950 to-neutral-950 border-b border-neutral-800/80 pt-8 pb-14 sm:pt-12 sm:pb-20">
+    <section className="relative overflow-hidden bg-gradient-to-b from-neutral-900 via-neutral-950 to-neutral-950 border-b border-neutral-800/80 pt-8 pb-14 sm:pt-12 sm:pb-20" id="home">
       {/* Background radial glow accents */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-amber-500/10 blur-3xl pointer-events-none rounded-full" />
       <div className="absolute -top-10 -right-10 w-72 h-72 bg-amber-600/10 blur-2xl pointer-events-none rounded-full" />
@@ -35,10 +37,26 @@ export const Hero: React.FC<HeroProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           {/* Left Column: Headlines & CTAs */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-            {/* Trust pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900/90 border border-amber-500/30 text-amber-400 text-xs sm:text-sm font-semibold shadow-inner">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>100% Genuine & Authentic Supplements • Israna</span>
+            {/* Top Badges */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900/90 border border-amber-500/30 text-amber-400 text-xs sm:text-sm font-semibold shadow-inner">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span>100% Genuine & Authentic Supplements • Israna</span>
+              </div>
+
+              {onCalculatorClick && (
+                <button
+                  type="button"
+                  onClick={onCalculatorClick}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold hover:scale-105 hover:border-amber-400 transition-all shadow-sm cursor-pointer"
+                  id="hero-calculator-stack-badge"
+                  title="Open Nutrition Calculator & Stack Builder"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Calculator & Stacks</span>
+                  <ArrowRight className="w-3 h-3 text-amber-400" />
+                </button>
+              )}
             </div>
 
             {/* Main headline */}
