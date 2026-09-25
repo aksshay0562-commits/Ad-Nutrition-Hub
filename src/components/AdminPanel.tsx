@@ -27,6 +27,7 @@ import { LogIn } from 'lucide-react';
 import { compressImage } from '../utils/imageCompressor';
 import { ProductScannerModal } from './ProductScannerModal';
 import { ProductQRModal } from './ProductQRModal';
+import { triggerHaptic } from '../utils/haptics';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -95,6 +96,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Handler for data received from QR code or barcode scanner
   const handleScannedDataForForm = (scannedData: Partial<Product>) => {
+    triggerHaptic('success');
     if (scannedData.name) setName(scannedData.name);
     if (scannedData.price) setPrice(String(scannedData.price));
     if (scannedData.originalPrice) setOriginalPrice(String(scannedData.originalPrice));
@@ -484,7 +486,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
-                onClick={() => setActiveTab('scan')}
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveTab('scan');
+                }}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
                   activeTab === 'scan'
                     ? 'border-amber-500 text-amber-400 bg-neutral-800/40'
@@ -536,7 +541,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('scan')}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setActiveTab('scan');
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-bold transition-colors"
                     id="admin-btn-scan-to-fill"
                   >
@@ -920,7 +928,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setActiveTab('scan')}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setActiveTab('scan');
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-bold text-xs transition-colors"
                       id="admin-manage-scan-btn"
                     >

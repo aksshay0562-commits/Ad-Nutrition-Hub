@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice } from '../services/productService';
+import { triggerHaptic } from '../utils/haptics';
 
 interface ProductScannerModalProps {
   isOpen: boolean;
@@ -57,12 +58,8 @@ function playScanChime() {
     // AudioContext blocked or unavailable
   }
 
-  // Haptic feedback for mobile devices
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    try {
-      navigator.vibrate([60, 40, 60]);
-    } catch {}
-  }
+  // Tactile haptic confirmation feedback
+  triggerHaptic('success');
 }
 
 export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
@@ -417,6 +414,7 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      triggerHaptic('light');
                       onSelectProduct(scannedResult.matchedProduct!);
                       if (!inlineMode) onClose();
                     }}
@@ -428,7 +426,10 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={resetScan}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      resetScan();
+                    }}
                     className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs sm:text-sm transition-colors"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -456,6 +457,7 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      triggerHaptic('light');
                       if (onAddProductWithScannedData) {
                         onAddProductWithScannedData(scannedResult.jsonData!);
                       }
@@ -469,7 +471,10 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={resetScan}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      resetScan();
+                    }}
                     className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs sm:text-sm transition-colors"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -499,6 +504,7 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      triggerHaptic('light');
                       if (onAddProductWithScannedData) {
                         onAddProductWithScannedData({
                           description: `Barcode: ${scannedResult.rawCode}`,
@@ -516,7 +522,10 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={resetScan}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      resetScan();
+                    }}
                     className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs sm:text-sm transition-colors"
                   >
                     <RefreshCw className="w-4 h-4" />

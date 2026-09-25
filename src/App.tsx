@@ -42,6 +42,7 @@ import { AndroidInstallModal } from './components/AndroidInstallModal';
 import { ProductScannerModal } from './components/ProductScannerModal';
 import { ProductQRModal } from './components/ProductQRModal';
 import { Camera, QrCode } from 'lucide-react';
+import { triggerHaptic } from './utils/haptics';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -59,6 +60,72 @@ export default function App() {
   const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
+
+  // Track scan inactivity to animate the 'Scan Product' button with a subtle pulse/glow effect
+  const [shouldPulseScanBtn, setShouldPulseScanBtn] = useState(false);
+  // Track scroll position past hero section to trigger prominent pulse/glow
+  const [isPastHero, setIsPastHero] = useState(false);
+  const [hasDismissedScanNotice, setHasDismissedScanNotice] = useState(false);
+
+  // Monitor scroll position relative to Hero section (#home)
+  useEffect(() => {
+    const handleScroll = () => {
+      const heroEl = document.getElementById('home');
+      if (heroEl) {
+        const rect = heroEl.getBoundingClientRect();
+        // User has scrolled past the hero when hero bottom is near or above the viewport top
+        setIsPastHero(rect.bottom <= 180 || window.scrollY > 400);
+      } else {
+        setIsPastHero(window.scrollY > 400);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const checkScanInactivity = () => {
+      try {
+        const lastScan = localStorage.getItem('ad_nutrition_last_scan_timestamp');
+        if (!lastScan) {
+          // Never scanned yet -> draw attention to the scanner feature
+          setShouldPulseScanBtn(true);
+        } else {
+          const timeSince = Date.now() - parseInt(lastScan, 10);
+          // If user hasn't scanned a product in over 3 minutes, pulse to draw attention
+          if (timeSince > 3 * 60 * 1000) {
+            setShouldPulseScanBtn(true);
+          } else {
+            setShouldPulseScanBtn(false);
+          }
+        }
+      } catch {
+        setShouldPulseScanBtn(true);
+      }
+    };
+
+    checkScanInactivity();
+    const interval = setInterval(checkScanInactivity, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Compute prominent pulse/glow: triggers subtly at first, but triggers MORE PROMINENTLY
+  // once the user scrolls past the hero section into the catalog to reinforce scanner availability.
+  const isProminentPulse = isPastHero && (shouldPulseScanBtn || !hasDismissedScanNotice);
+  const isAnyPulse = isProminentPulse || shouldPulseScanBtn;
+
+  const handleOpenScanner = () => {
+    // Tactile vibration feedback on 'Scan Product' button click
+    triggerHaptic('light');
+    setIsScannerModalOpen(true);
+    try {
+      localStorage.setItem('ad_nutrition_last_scan_timestamp', Date.now().toString());
+    } catch {}
+    setShouldPulseScanBtn(false);
+    setHasDismissedScanNotice(true);
+  };
 
   // Admin authentication state via AuthContext (Firebase Auth or PIN)
   const { isAdmin, setAdminPinAuth, logout } = useAuth();
@@ -313,7 +380,7 @@ export default function App() {
         activeSection={activeSection}
         onNavigate={handleNavigate}
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
-        onOpenScanner={() => setIsScannerModalOpen(true)}
+        onOpenScanner={handleOpenScanner}
       />
 
       {/* Hero Section */}
@@ -393,13 +460,34 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
               <button
                 type="button"
-                onClick={() => setIsScannerModalOpen(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-amber-500/50 text-xs font-bold transition-colors"
+                onClick={handleOpenScanner}
+                className={`relative inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 transform ${
+                  isProminentPulse
+                    ? 'bg-gradient-to-r from-amber-950/80 via-neutral-900 to-amber-950/80 border-2 border-amber-400 text-amber-300 shadow-[0_0_28px_rgba(245,158,11,0.65)] ring-4 ring-amber-500/35 animate-pulse scale-[1.03] hover:scale-105 hover:animate-none hover:shadow-[0_0_36px_rgba(245,158,11,0.9)]'
+                    : isAnyPulse
+                    ? 'bg-gradient-to-r from-neutral-900 via-amber-950/40 to-neutral-900 border border-amber-500/80 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.38)] ring-2 ring-amber-500/40 animate-pulse hover:animate-none hover:shadow-[0_0_24px_rgba(245,158,11,0.6)]'
+                    : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-amber-500/50'
+                }`}
                 id="catalog-header-scan-btn"
                 title="Scan QR Code or Packaging Barcode"
               >
-                <Camera className="w-4 h-4 text-amber-400" />
+                {isAnyPulse && (
+                  <span className={`absolute pointer-events-none ${isProminentPulse ? '-top-1.5 -right-1.5 flex h-3 w-3' : '-top-1 -right-1 flex h-2.5 w-2.5'}`}>
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 ${isProminentPulse ? 'opacity-90 duration-700' : 'opacity-80'}`} />
+                    <span className={`relative inline-flex rounded-full bg-amber-500 shadow-sm ${isProminentPulse ? 'h-3 w-3 shadow-amber-500/50' : 'h-2.5 w-2.5'}`} />
+                  </span>
+                )}
+                <Camera className={`w-4 h-4 text-amber-400 ${isAnyPulse ? (isProminentPulse ? 'animate-bounce text-amber-300' : 'animate-bounce') : ''}`} />
                 <span>Scan Product</span>
+                {isAnyPulse && (
+                  <span className={`hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded border transition-all ${
+                    isProminentPulse
+                      ? 'bg-amber-400 text-neutral-950 border-amber-300 shadow-sm animate-pulse font-black'
+                      : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  }`}>
+                    {isProminentPulse ? 'Quick Scan' : 'Try'}
+                  </span>
+                )}
               </button>
 
               {isAdmin && (
@@ -453,7 +541,7 @@ export default function App() {
                 )}
                 <button
                   type="button"
-                  onClick={() => setIsScannerModalOpen(true)}
+                  onClick={handleOpenScanner}
                   className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 border border-neutral-800 transition-colors"
                   title="Scan Product QR Code or Barcode"
                   id="catalog-search-scan-btn"
@@ -729,11 +817,25 @@ export default function App() {
         products={products}
         isAdmin={isAdmin}
         onSelectProduct={(p) => {
+          // Tactile haptic vibration confirmation when scan result is processed
+          triggerHaptic('success');
           setSelectedProduct(p);
           setIsScannerModalOpen(false);
+          try {
+            localStorage.setItem('ad_nutrition_last_scan_timestamp', Date.now().toString());
+          } catch {}
+          setShouldPulseScanBtn(false);
+          setHasDismissedScanNotice(true);
         }}
         onAddProductWithScannedData={(data) => {
+          // Tactile haptic vibration confirmation when scan result is processed
+          triggerHaptic('success');
           setIsScannerModalOpen(false);
+          try {
+            localStorage.setItem('ad_nutrition_last_scan_timestamp', Date.now().toString());
+          } catch {}
+          setShouldPulseScanBtn(false);
+          setHasDismissedScanNotice(true);
           setEditingProduct({
             id: '',
             name: data.name || '',
