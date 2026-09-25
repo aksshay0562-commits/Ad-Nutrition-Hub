@@ -1,3 +1,8 @@
+export interface PriceHistoryPoint {
+  date: string;
+  price: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -11,6 +16,7 @@ export interface Product {
   imageUrl: string;
   featured?: boolean;
   brand?: string;
+  priceHistory?: PriceHistoryPoint[];
   createdAt: string;
   updatedAt?: string;
 }

@@ -14,6 +14,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Hyper Nutrition",
+    priceHistory: [
+      { date: "May 2026", price: 4600 },
+      { date: "Jun 2026", price: 4350 },
+      { date: "Jul 2026", price: 4100 },
+      { date: "Aug 2026", price: 3950 },
+      { date: "Sep 2026", price: 3800 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -29,6 +36,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Hyper Nutrition",
+    priceHistory: [
+      { date: "May 2026", price: 4200 },
+      { date: "Jun 2026", price: 3900 },
+      { date: "Jul 2026", price: 3650 },
+      { date: "Aug 2026", price: 3450 },
+      { date: "Sep 2026", price: 3300 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -44,6 +58,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "RW Performance",
+    priceHistory: [
+      { date: "May 2026", price: 3200 },
+      { date: "Jun 2026", price: 2950 },
+      { date: "Jul 2026", price: 2750 },
+      { date: "Aug 2026", price: 2600 },
+      { date: "Sep 2026", price: 2500 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -59,6 +80,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "Strength Labs",
+    priceHistory: [
+      { date: "May 2026", price: 2800 },
+      { date: "Jun 2026", price: 2650 },
+      { date: "Jul 2026", price: 2450 },
+      { date: "Aug 2026", price: 2300 },
+      { date: "Sep 2026", price: 2209 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -74,6 +102,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "Pro Active Labs",
+    priceHistory: [
+      { date: "May 2026", price: 3100 },
+      { date: "Jun 2026", price: 2900 },
+      { date: "Jul 2026", price: 2750 },
+      { date: "Aug 2026", price: 2600 },
+      { date: "Sep 2026", price: 2500 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -89,6 +124,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Deep Sea Marine",
+    priceHistory: [
+      { date: "May 2026", price: 1350 },
+      { date: "Jun 2026", price: 1200 },
+      { date: "Jul 2026", price: 1050 },
+      { date: "Aug 2026", price: 950 },
+      { date: "Sep 2026", price: 900 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -104,6 +146,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "AD Nutrition",
+    priceHistory: [
+      { date: "May 2026", price: 1400 },
+      { date: "Jun 2026", price: 1250 },
+      { date: "Jul 2026", price: 1100 },
+      { date: "Aug 2026", price: 1050 },
+      { date: "Sep 2026", price: 999 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -119,6 +168,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Thunder Lab",
+    priceHistory: [
+      { date: "May 2026", price: 1999 },
+      { date: "Jun 2026", price: 1800 },
+      { date: "Jul 2026", price: 1650 },
+      { date: "Aug 2026", price: 1550 },
+      { date: "Sep 2026", price: 1450 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -134,6 +190,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1594882645126-14020914d58d?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "Matrix Fuel",
+    priceHistory: [
+      { date: "May 2026", price: 2200 },
+      { date: "Jun 2026", price: 2000 },
+      { date: "Jul 2026", price: 1850 },
+      { date: "Aug 2026", price: 1750 },
+      { date: "Sep 2026", price: 1650 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -149,6 +212,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "AD Nutrition",
+    priceHistory: [
+      { date: "May 2026", price: 2800 },
+      { date: "Jun 2026", price: 2550 },
+      { date: "Jul 2026", price: 2350 },
+      { date: "Aug 2026", price: 2200 },
+      { date: "Sep 2026", price: 2100 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -164,6 +234,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "AD Accessories",
+    priceHistory: [
+      { date: "May 2026", price: 500 },
+      { date: "Jun 2026", price: 450 },
+      { date: "Jul 2026", price: 400 },
+      { date: "Aug 2026", price: 380 },
+      { date: "Sep 2026", price: 350 }
+    ],
     createdAt: new Date().toISOString()
   },
   {
@@ -179,6 +256,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=800&q=80",
     featured: false,
     brand: "Iron Grip",
+    priceHistory: [
+      { date: "May 2026", price: 650 },
+      { date: "Jun 2026", price: 580 },
+      { date: "Jul 2026", price: 520 },
+      { date: "Aug 2026", price: 480 },
+      { date: "Sep 2026", price: 450 }
+    ],
     createdAt: new Date().toISOString()
   }
 ];

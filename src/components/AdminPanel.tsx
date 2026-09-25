@@ -183,7 +183,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const cleanWeight = weightOrSize.trim();
       const cleanFlavour = flavour.trim();
 
+      const currentMonthYear = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
       if (editingProduct) {
+        const existingHistory = editingProduct.priceHistory || [];
+        // If price has changed, append new history point
+        const updatedPriceHistory = editingProduct.price !== numPrice
+          ? [...existingHistory, { date: currentMonthYear, price: numPrice }]
+          : existingHistory;
+
         await onUpdateProduct(editingProduct.id, {
           name: name.trim(),
           category: finalCategory,
@@ -193,12 +201,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           description: description.trim(),
           imageUrl: finalImageUrl,
           featured,
+          priceHistory: updatedPriceHistory.length > 0 ? updatedPriceHistory : undefined,
           ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
           ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
           ...(cleanFlavour ? { flavour: cleanFlavour } : {})
         });
         setFeedbackMessage({ type: 'success', text: `Product "${name}" updated and saved permanently to server!` });
       } else {
+        const initialPriceHistory = [
+          ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? [{ date: 'Launch', price: parsedOriginalPrice }] : []),
+          { date: currentMonthYear, price: numPrice }
+        ];
+
         await onAddProduct({
           name: name.trim(),
           category: finalCategory,
@@ -208,6 +222,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           description: description.trim(),
           imageUrl: finalImageUrl,
           featured,
+          priceHistory: initialPriceHistory,
           ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
           ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
           ...(cleanFlavour ? { flavour: cleanFlavour } : {})
