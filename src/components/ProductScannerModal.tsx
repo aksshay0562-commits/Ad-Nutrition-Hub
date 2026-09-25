@@ -20,11 +20,18 @@ import {
   ExternalLink,
   History,
   Clock,
-  Trash2
+  Trash2,
+  Scan
 } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice } from '../services/productService';
 import { triggerHaptic } from '../utils/haptics';
+import { 
+  recordProductScan, 
+  recordGeneralScan, 
+  seedInitialScanAnalyticsIfEmpty, 
+  getScanAnalytics 
+} from '../services/scanAnalyticsService';
 
 export interface RecentScanItem {
   id: string;
@@ -107,10 +114,17 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
 
   // Recent scans state (stores up to 5 items)
   const [recentScans, setRecentScans] = useState<RecentScanItem[]>([]);
+  // Analytics total scans counter
+  const [totalScansCount, setTotalScansCount] = useState<number>(() => getScanAnalytics().totalScans);
 
   // Load and hydrate recent scans from localStorage
   useEffect(() => {
     try {
+      if (products.length > 0) {
+        seedInitialScanAnalyticsIfEmpty(products);
+      }
+      setTotalScansCount(getScanAnalytics().totalScans);
+
       const raw = localStorage.getItem('ad_nutrition_recent_scans');
       if (raw) {
         const parsed: Array<{ id: string; code: string; timestamp: number; product?: Product }> = JSON.parse(raw);
@@ -372,9 +386,22 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
       ) || null;
     }
 
+    // Count-based analytics tracking for store owner
     if (matched) {
       recordRecentScan(cleanText, matched);
+      recordProductScan(matched, cleanText);
+    } else if (parsedJson && parsedJson.name) {
+      recordProductScan({
+        id: (parsedJson as any).id || `qr-prod-${cleanText.slice(0, 8)}`,
+        name: parsedJson.name,
+        category: parsedJson.category || 'Whey Protein',
+        price: parsedJson.price || 0,
+        imageUrl: parsedJson.imageUrl || ''
+      }, cleanText);
+    } else {
+      recordGeneralScan(`Unlinked Barcode (${cleanText.slice(0, 16)})`, cleanText);
     }
+    setTotalScansCount((prev) => prev + 1);
 
     setScannedResult({
       rawCode: cleanText,
@@ -469,6 +496,15 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
               <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 Camera Live
               </span>
+              {totalScansCount > 0 && (
+                <span
+                  className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-amber-400/90 bg-neutral-800/90 px-2 py-0.5 rounded-full border border-neutral-700/80"
+                  title="Total customer & store scans recorded"
+                >
+                  <Scan className="w-2.5 h-2.5 text-amber-400" />
+                  <span>{totalScansCount} Scans</span>
+                </span>
+              )}
             </h3>
             <p className="text-xs text-neutral-400">
               Scan product QR codes or package barcodes to open or add to inventory

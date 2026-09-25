@@ -18,7 +18,13 @@ import {
   Youtube,
   Camera,
   QrCode,
-  Scan
+  Scan,
+  BarChart3,
+  TrendingUp,
+  Trophy,
+  Flame,
+  Clock,
+  Activity
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
 import { formatPrice, getYoutubeVideoId } from '../services/productService';
@@ -28,6 +34,14 @@ import { compressImage } from '../utils/imageCompressor';
 import { ProductScannerModal } from './ProductScannerModal';
 import { ProductQRModal } from './ProductQRModal';
 import { triggerHaptic } from '../utils/haptics';
+import { 
+  getScanAnalytics, 
+  clearScanAnalytics, 
+  SCAN_ANALYTICS_EVENT, 
+  ScanAnalyticsData, 
+  ProductScanStat,
+  seedInitialScanAnalyticsIfEmpty 
+} from '../services/scanAnalyticsService';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -56,6 +70,18 @@ const SUPPLEMENT_IMAGE_PRESETS = [
   { label: 'Gym Shaker Bottle', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80' },
 ];
 
+function formatTimeAgo(timestamp: number): string {
+  if (!timestamp) return 'Recently';
+  const diff = Math.max(0, Date.now() - timestamp);
+  const mins = Math.floor(diff / (1000 * 60));
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / (1000 * 60 * 60 * 24));
+  return `${days}d ago`;
+}
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
   onClose,
@@ -71,13 +97,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   setEditingProduct,
   onViewProductDetails
 }) => {
-  const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'manage' | 'backup'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'analytics' | 'manage' | 'backup'>('form');
   const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
   const { signInWithGoogle, authError } = useAuth();
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Scan Analytics State
+  const [scanAnalytics, setScanAnalytics] = useState<ScanAnalyticsData>(() => getScanAnalytics());
+  const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState('');
+  const [confirmResetAnalytics, setConfirmResetAnalytics] = useState(false);
+
+  // Sync analytics data and listen for live scan updates
+  React.useEffect(() => {
+    if (products.length > 0) {
+      seedInitialScanAnalyticsIfEmpty(products);
+    }
+    setScanAnalytics(getScanAnalytics());
+
+    const handleUpdate = () => {
+      setScanAnalytics(getScanAnalytics());
+    };
+
+    window.addEventListener(SCAN_ANALYTICS_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(SCAN_ANALYTICS_EVENT, handleUpdate);
+    };
+  }, [products, isOpen]);
 
   // Form State
   const [name, setName] = useState('');
@@ -502,6 +550,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveTab('analytics');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
+                  activeTab === 'analytics'
+                    ? 'border-amber-500 text-amber-400 bg-neutral-800/40'
+                    : 'border-transparent text-neutral-400 hover:text-white'
+                }`}
+                id="admin-tab-scan-analytics"
+              >
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+                <span>Scan Analytics</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                  {scanAnalytics.totalScans}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('manage')}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
                   activeTab === 'manage'
@@ -914,10 +981,339 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       setActiveTab('form');
                     }
                   }}
-                  onAddProductWithScannedData={handleScannedDataForForm}
+                    onAddProductWithScannedData={handleScannedDataForForm}
                 />
               </div>
             )}
+
+            {/* Tab: Product Scan Analytics Dashboard */}
+            {activeTab === 'analytics' && (() => {
+              const allStats = Object.values(scanAnalytics.productStats || {});
+              const sortedStats = [...allStats].sort((a, b) => b.scanCount - a.scanCount);
+              const topProduct = sortedStats[0];
+              const maxScans = topProduct ? Math.max(topProduct.scanCount, 1) : 1;
+              const uniqueScanned = allStats.filter(s => s.scanCount > 0).length;
+              const filteredStats = sortedStats.filter(s => 
+                s.productName.toLowerCase().includes(analyticsSearchQuery.toLowerCase()) ||
+                s.category.toLowerCase().includes(analyticsSearchQuery.toLowerCase())
+              );
+
+              return (
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6" id="admin-scan-analytics-view">
+                  {/* Top Bar / Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-800">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-amber-400" />
+                        <span>Product Scanner Analytics</span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          Live Data
+                        </span>
+                      </h3>
+                      <p className="text-xs text-neutral-400 mt-0.5">
+                        Track which supplements are being scanned most frequently by in-store customers and online shoppers.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setActiveTab('scan');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 text-xs font-bold transition-colors"
+                        id="admin-analytics-test-scan-btn"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Open Live Scanner</span>
+                      </button>
+
+                      {confirmResetAnalytics ? (
+                        <div className="inline-flex items-center gap-1.5 p-1 bg-red-950/90 border border-red-800 rounded-xl animate-fade-in">
+                          <span className="text-[11px] text-red-300 font-semibold px-2">Clear all stats?</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic('light');
+                              clearScanAnalytics();
+                              setConfirmResetAnalytics(false);
+                            }}
+                            className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold"
+                            id="admin-analytics-confirm-reset-btn"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmResetAnalytics(false)}
+                            className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs font-semibold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmResetAnalytics(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-800 text-xs font-semibold transition-colors"
+                          id="admin-analytics-reset-btn"
+                          title="Reset scan analytics counter"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Reset Counts</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4 Summary Metric KPI Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {/* Card 1: Total Scans */}
+                    <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-neutral-400">Total Scans</span>
+                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <Scan className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-2xl sm:text-3xl font-extrabold text-white">
+                          {scanAnalytics.totalScans}
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">Successful barcode & QR scans</p>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Most Popular Scanned Product */}
+                    <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-neutral-400">Most Scanned</span>
+                        <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                          <Trophy className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm sm:text-base font-extrabold text-amber-300 truncate" title={topProduct?.productName || 'None'}>
+                          {topProduct?.productName || 'None yet'}
+                        </div>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">
+                          {topProduct ? `${topProduct.scanCount} scans (${Math.round((topProduct.scanCount / Math.max(scanAnalytics.totalScans, 1)) * 100)}% of total)` : 'Scan products to track'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Unique Products Scanned */}
+                    <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-neutral-400">Products Scanned</span>
+                        <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                          <Flame className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-2xl sm:text-3xl font-extrabold text-white">
+                          {uniqueScanned}
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          out of {products.length} catalog items
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Last Scan Activity */}
+                    <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-neutral-400">Last Activity</span>
+                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <Activity className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm sm:text-base font-extrabold text-emerald-400">
+                          {scanAnalytics.lastScannedAt ? formatTimeAgo(scanAnalytics.lastScannedAt) : 'No scans yet'}
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          {scanAnalytics.lastScannedAt ? new Date(scanAnalytics.lastScannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ready for scans'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Leaderboard Table / Section */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-amber-400" />
+                          <span>Most Frequently Scanned Products</span>
+                        </h4>
+                        <p className="text-xs text-neutral-400">
+                          Ranked by total customer scan volume to highlight popular supplements
+                        </p>
+                      </div>
+
+                      {/* Search Filter inside Analytics */}
+                      <div className="w-full sm:w-64">
+                        <input
+                          type="text"
+                          placeholder="Filter scanned products..."
+                          value={analyticsSearchQuery}
+                          onChange={(e) => setAnalyticsSearchQuery(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500"
+                        />
+                      </div>
+                    </div>
+
+                    {filteredStats.length === 0 ? (
+                      <div className="py-10 px-4 rounded-xl border border-dashed border-neutral-800 text-center flex flex-col items-center justify-center gap-2 bg-neutral-900/30">
+                        <BarChart3 className="w-8 h-8 text-neutral-600" />
+                        <p className="text-sm font-bold text-neutral-300">No scan activity found</p>
+                        <p className="text-xs text-neutral-500 max-w-sm">
+                          {analyticsSearchQuery ? 'No scanned products match your search filter.' : 'Scan QR codes or packaging barcodes in the store to build scan analytics here.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {filteredStats.map((stat, index) => {
+                          const scanPct = Math.round((stat.scanCount / Math.max(scanAnalytics.totalScans, 1)) * 100);
+                          const barWidthPct = Math.round((stat.scanCount / maxScans) * 100);
+
+                          return (
+                            <div
+                              key={stat.productId}
+                              id={`admin-analytics-item-${stat.productId}`}
+                              className="group p-3 sm:p-3.5 rounded-xl bg-neutral-900/80 hover:bg-neutral-850 border border-neutral-800/90 hover:border-amber-500/40 transition-all space-y-2.5"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                {/* Left Info */}
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  {/* Rank Badge */}
+                                  <div className="shrink-0 flex items-center justify-center">
+                                    {index === 0 ? (
+                                      <span className="w-7 h-7 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 text-neutral-950 font-black text-xs flex items-center justify-center shadow-md shadow-amber-500/20">
+                                        #1
+                                      </span>
+                                    ) : index === 1 ? (
+                                      <span className="w-7 h-7 rounded-lg bg-neutral-300 text-neutral-900 font-black text-xs flex items-center justify-center">
+                                        #2
+                                      </span>
+                                    ) : index === 2 ? (
+                                      <span className="w-7 h-7 rounded-lg bg-amber-800/80 text-amber-200 font-black text-xs flex items-center justify-center">
+                                        #3
+                                      </span>
+                                    ) : (
+                                      <span className="w-7 h-7 rounded-lg bg-neutral-800 text-neutral-400 font-bold text-xs flex items-center justify-center">
+                                        #{index + 1}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Thumbnail */}
+                                  <img
+                                    src={stat.imageUrl || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=300&q=80'}
+                                    alt={stat.productName}
+                                    className="w-11 h-11 rounded-lg object-cover bg-neutral-950 border border-neutral-700/80 shrink-0"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=300&q=80';
+                                    }}
+                                  />
+
+                                  {/* Title & Metadata */}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                        {stat.category}
+                                      </span>
+                                      <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+                                        <Clock className="w-2.5 h-2.5" />
+                                        {formatTimeAgo(stat.lastScannedAt)}
+                                      </span>
+                                    </div>
+                                    <h5 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                      {stat.productName}
+                                    </h5>
+                                    <span className="text-xs font-semibold text-amber-400">
+                                      {formatPrice(stat.price)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Right Stats Pill & Actions */}
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div className="text-right">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold shadow-sm">
+                                      <Scan className="w-3 h-3 text-amber-400" />
+                                      <span>{stat.scanCount} Scans</span>
+                                    </span>
+                                    <p className="text-[10px] text-neutral-400 mt-0.5 font-medium">
+                                      {scanPct}% of total
+                                    </p>
+                                  </div>
+
+                                  {/* Quick Action Button to View in Catalog */}
+                                  {onViewProductDetails && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const prod = products.find(p => p.id === stat.productId);
+                                        if (prod) onViewProductDetails(prod);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
+                                      title="View Product in Catalog"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Progress bar visualizing frequency */}
+                              <div className="w-full bg-neutral-950 rounded-full h-2 overflow-hidden border border-neutral-800/80">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-500 to-amber-300 rounded-full transition-all duration-500"
+                                  style={{ width: `${barWidthPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recent Live Scan Events Feed */}
+                  {scanAnalytics.recentEvents && scanAnalytics.recentEvents.length > 0 && (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-emerald-400" />
+                          <span>Recent Scan Activity Stream</span>
+                        </h4>
+                        <span className="text-[10px] font-bold text-neutral-400">
+                          Last {scanAnalytics.recentEvents.length} events
+                        </span>
+                      </div>
+
+                      <div className="divide-y divide-neutral-900 max-h-56 overflow-y-auto pr-1">
+                        {scanAnalytics.recentEvents.map((evt) => (
+                          <div key={evt.id} className="py-2 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                              <span className="font-semibold text-white truncate">{evt.productName}</span>
+                              <span className="text-[10px] text-neutral-400 font-mono hidden sm:inline">({evt.code.length > 18 ? `${evt.code.slice(0, 18)}...` : evt.code})</span>
+                            </div>
+                            <span className="text-[11px] text-neutral-400 shrink-0">
+                              {formatTimeAgo(evt.timestamp)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Tab 3: Manage Products List */}
             {activeTab === 'manage' && (
@@ -955,6 +1351,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="space-y-2">
                   {products.map((p) => {
                     const isInStock = p.availability === 'In Stock';
+                    const prodScanCount = scanAnalytics.productStats[p.id]?.scanCount || 0;
 
                     return (
                       <div
@@ -988,6 +1385,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2 self-end sm:self-center">
+                          {/* Product Scan Count Badge */}
+                          {prodScanCount > 0 && (
+                            <span 
+                              className="px-2 py-1 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1"
+                              title={`${prodScanCount} customer scans recorded for this product`}
+                            >
+                              <Scan className="w-3 h-3 text-amber-400" />
+                              <span>{prodScanCount} scans</span>
+                            </span>
+                          )}
+
                           {/* Fast Stock Toggle Button */}
                           <button
                             onClick={() => onUpdateProduct(p.id, {
