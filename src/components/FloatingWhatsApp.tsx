@@ -276,15 +276,16 @@ export const FloatingWhatsApp: React.FC = () => {
 
   return (
     <>
-      {/* Floating Widget Container with dynamic footer avoidance */}
+      {/* Floating Widget Container with dynamic footer avoidance and soft spring-based entry */}
       <motion.div 
         className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2 select-none pointer-events-none *:pointer-events-auto"
-        animate={{ y: -verticalOffset }}
+        initial={{ opacity: 0, y: 50, x: 20, scale: 0.88 }}
+        animate={{ opacity: 1, y: -verticalOffset, x: 0, scale: 1 }}
         transition={{
           type: 'spring',
-          stiffness: 320,
-          damping: 28,
-          mass: 0.8,
+          stiffness: 260,
+          damping: 22,
+          mass: 0.85,
         }}
         id="floating-whatsapp-widget"
       >
