@@ -21,7 +21,8 @@ import {
   Smartphone,
   ExternalLink,
   Youtube,
-  Play
+  Play,
+  QrCode
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -48,6 +49,7 @@ interface ProductDetailsModalProps {
   product: Product | null;
   onClose: () => void;
   onEdit?: (product: Product) => void;
+  onShowQR?: (product: Product) => void;
   isAdmin?: boolean;
 }
 
@@ -55,6 +57,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   product,
   onClose,
   onEdit,
+  onShowQR,
   isAdmin = false
 }) => {
   if (!product) return null;
@@ -209,6 +212,16 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onShowQR && (
+              <button
+                onClick={() => onShowQR(product)}
+                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-400 hover:text-amber-300 transition-colors"
+                title="View / Print Product QR Code"
+                id="modal-qr-product-btn"
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={handleShare}
               className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"

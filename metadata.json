@@ -1,6 +1,6 @@
 {
   "name": "AD Nutrition Hub Israna",
   "description": "AD Nutrition Hub Israna — Premier nutrition and fitness supplement store in Mandi Mor, Israna, Panipat, Haryana. 100% authentic whey protein, mass gainers, creatine, pre-workouts, vitamins and accessories with WhatsApp ordering and shop owner management.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -15,13 +15,18 @@ import {
   AlertCircle,
   Eye,
   Image as ImageIcon,
-  Youtube
+  Youtube,
+  Camera,
+  QrCode,
+  Scan
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
 import { formatPrice, getYoutubeVideoId } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { LogIn } from 'lucide-react';
 import { compressImage } from '../utils/imageCompressor';
+import { ProductScannerModal } from './ProductScannerModal';
+import { ProductQRModal } from './ProductQRModal';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -36,6 +41,7 @@ interface AdminPanelProps {
   onResetDefaults: () => Promise<void>;
   editingProduct: Product | null;
   setEditingProduct: (product: Product | null) => void;
+  onViewProductDetails?: (product: Product) => void;
 }
 
 // Preset supplement images for quick 1-click selection if user does not have a photo ready
@@ -61,9 +67,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteProduct,
   onResetDefaults,
   editingProduct,
-  setEditingProduct
+  setEditingProduct,
+  onViewProductDetails
 }) => {
-  const [activeTab, setActiveTab] = useState<'form' | 'manage' | 'backup'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'manage' | 'backup'>('form');
+  const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
   const { signInWithGoogle, authError } = useAuth();
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -84,6 +92,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [imageUrl, setImageUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [featured, setFeatured] = useState(false);
+
+  // Handler for data received from QR code or barcode scanner
+  const handleScannedDataForForm = (scannedData: Partial<Product>) => {
+    if (scannedData.name) setName(scannedData.name);
+    if (scannedData.price) setPrice(String(scannedData.price));
+    if (scannedData.originalPrice) setOriginalPrice(String(scannedData.originalPrice));
+    if (scannedData.brand) setBrand(scannedData.brand);
+    if (scannedData.weightOrSize) setWeightOrSize(scannedData.weightOrSize);
+    if (scannedData.flavour) setFlavour(scannedData.flavour);
+    if (scannedData.imageUrl) setImageUrl(scannedData.imageUrl);
+    if (scannedData.youtubeUrl) setYoutubeUrl(scannedData.youtubeUrl);
+    if (scannedData.description) {
+      setDescription((prev) => prev ? `${prev}\n${scannedData.description}` : (scannedData.description || ''));
+    }
+    if (scannedData.category) {
+      if (CATEGORIES.includes(scannedData.category as any)) {
+        setCategory(scannedData.category);
+        setCustomCategory('');
+      } else {
+        setCategory('Other');
+        setCustomCategory(scannedData.category);
+      }
+    }
+    setFeedbackMessage({
+      type: 'success',
+      text: 'Scanned details filled into product form! Verify and click Save.'
+    });
+    setActiveTab('form');
+  };
 
   // Sync with editingProduct when it changes
   React.useEffect(() => {
@@ -447,6 +484,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
+                onClick={() => setActiveTab('scan')}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
+                  activeTab === 'scan'
+                    ? 'border-amber-500 text-amber-400 bg-neutral-800/40'
+                    : 'border-transparent text-neutral-400 hover:text-white'
+                }`}
+                id="admin-tab-scan-product"
+              >
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span>Scan Product</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('manage')}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
                   activeTab === 'manage'
@@ -478,6 +528,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Tab 1: Add or Edit Form */}
             {activeTab === 'form' && (
               <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+                {/* Fast Scan Shortcut Banner inside Form */}
+                <div className="flex flex-wrap items-center justify-between p-3.5 rounded-xl bg-neutral-950 border border-amber-500/30 gap-2">
+                  <div className="flex items-center gap-2 text-xs text-neutral-300">
+                    <QrCode className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Have a supplement bottle or package barcode?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('scan')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-bold transition-colors"
+                    id="admin-btn-scan-to-fill"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Scan with Camera to Auto-fill</span>
+                  </button>
+                </div>
+
                 {editingProduct && (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
                     <span>Currently editing: <strong>{editingProduct.name}</strong></span>
@@ -822,23 +889,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </form>
             )}
 
-            {/* Tab 2: Manage Products List */}
+            {/* Tab 2: Scan Product using Camera QR/Barcode Scanner */}
+            {activeTab === 'scan' && (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <ProductScannerModal
+                  isOpen={true}
+                  inlineMode={true}
+                  onClose={() => setActiveTab('manage')}
+                  products={products}
+                  isAdmin={true}
+                  onSelectProduct={(p) => {
+                    if (onViewProductDetails) {
+                      onViewProductDetails(p);
+                    } else {
+                      setEditingProduct(p);
+                      setActiveTab('form');
+                    }
+                  }}
+                  onAddProductWithScannedData={handleScannedDataForForm}
+                />
+              </div>
+            )}
+
+            {/* Tab 3: Manage Products List */}
             {activeTab === 'manage' && (
               <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                     All Products in Store ({products.length})
                   </h3>
-                  <button
-                    onClick={() => {
-                      resetForm();
-                      setActiveTab('form');
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-neutral-950 font-bold text-xs"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Add New</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab('scan')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-bold text-xs transition-colors"
+                      id="admin-manage-scan-btn"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Scan Product</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        resetForm();
+                        setActiveTab('form');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-colors"
+                      id="admin-manage-add-new-btn"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Add New</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -890,6 +990,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             title="Click to toggle stock"
                           >
                             {isInStock ? 'In Stock' : 'Out of Stock'}
+                          </button>
+
+                          {/* Product QR Shelf Tag Modal Trigger */}
+                          <button
+                            onClick={() => setSelectedQRProduct(p)}
+                            className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-amber-400 transition-colors"
+                            title="View / Print Product QR Code"
+                            id={`admin-qr-row-${p.id}`}
+                          >
+                            <QrCode className="w-4 h-4" />
                           </button>
 
                           {/* Edit Button */}
@@ -974,6 +1084,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* Product QR Shelf Tag Modal */}
+      <ProductQRModal
+        product={selectedQRProduct}
+        isOpen={Boolean(selectedQRProduct)}
+        onClose={() => setSelectedQRProduct(null)}
+      />
     </div>
   );
 };

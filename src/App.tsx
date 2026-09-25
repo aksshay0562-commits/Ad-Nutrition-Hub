@@ -39,6 +39,9 @@ import { ContactSection } from './components/ContactSection';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
+import { ProductScannerModal } from './components/ProductScannerModal';
+import { ProductQRModal } from './components/ProductQRModal';
+import { Camera, QrCode } from 'lucide-react';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,6 +55,8 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
 
@@ -122,6 +127,21 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  // Handle opening product directly if URL contains ?product=<id> (from scanned QR code)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && products.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const prodId = urlParams.get('product') || urlParams.get('id');
+      if (prodId) {
+        const found = products.find((p) => p.id === prodId);
+        if (found) {
+          setSelectedProduct(found);
+          showToast(`Opened ${found.name} from QR code!`, 'info');
+        }
+      }
+    }
+  }, [products]);
 
   // Admin Login Handlers
   const handleAdminLogin = (pin: string): boolean => {
@@ -293,6 +313,7 @@ export default function App() {
         activeSection={activeSection}
         onNavigate={handleNavigate}
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
+        onOpenScanner={() => setIsScannerModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -336,6 +357,7 @@ export default function App() {
                   key={`featured-${product.id}`}
                   product={product}
                   onViewDetails={(p) => setSelectedProduct(p)}
+                  onShowQR={(p) => setQrModalProduct(p)}
                   isAdmin={isAdmin}
                   onEdit={(p) => {
                     setEditingProduct(p);
@@ -367,20 +389,33 @@ export default function App() {
               </p>
             </div>
 
-            {/* Quick Admin Add Shortcut if logged in */}
-            {isAdmin && (
+            {/* Quick Actions: Scan & Add */}
+            <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
               <button
-                onClick={() => {
-                  setEditingProduct(null);
-                  setIsAdminModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs shadow-md shadow-amber-500/20 self-start md:self-auto transition-colors"
-                id="catalog-admin-add-btn"
+                type="button"
+                onClick={() => setIsScannerModalOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-amber-500/50 text-xs font-bold transition-colors"
+                id="catalog-header-scan-btn"
+                title="Scan QR Code or Packaging Barcode"
               >
-                <PlusCircle className="w-4 h-4" />
-                <span>Add Product to Website</span>
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span>Scan Product</span>
               </button>
-            )}
+
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setIsAdminModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-colors"
+                  id="catalog-admin-add-btn"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Add Product to Website</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -396,25 +431,36 @@ export default function App() {
         {/* Search & Filter Bar */}
         <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800 mb-8 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            {/* Search Input */}
+            {/* Search Input with Camera Scan Icon */}
             <div className="md:col-span-6 relative">
               <input
                 type="text"
                 placeholder="Search supplements (e.g., Whey Protein, Gainer, Creatine, Fish Oil)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700/80 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 placeholder-neutral-500"
+                className="w-full pl-10 pr-16 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700/80 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 placeholder-neutral-500"
                 id="catalog-search-input"
               />
               <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
-              {searchQuery && (
+              <div className="absolute right-2.5 top-2 flex items-center gap-1.5">
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs text-neutral-400 hover:text-white px-1.5 py-0.5"
+                  >
+                    Clear
+                  </button>
+                )}
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="text-xs text-neutral-400 hover:text-white absolute right-3 top-3"
+                  type="button"
+                  onClick={() => setIsScannerModalOpen(true)}
+                  className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 border border-neutral-800 transition-colors"
+                  title="Scan Product QR Code or Barcode"
+                  id="catalog-search-scan-btn"
                 >
-                  Clear
+                  <Camera className="w-3.5 h-3.5" />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Stock Filter */}
@@ -513,6 +559,7 @@ export default function App() {
                 key={product.id}
                 product={product}
                 onViewDetails={(p) => setSelectedProduct(p)}
+                onShowQR={(p) => setQrModalProduct(p)}
                 isAdmin={isAdmin}
                 onEdit={(p) => {
                   setEditingProduct(p);
@@ -650,6 +697,7 @@ export default function App() {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         isAdmin={isAdmin}
+        onShowQR={(p) => setQrModalProduct(p)}
         onEdit={(p) => {
           setSelectedProduct(null);
           setEditingProduct(p);
@@ -671,6 +719,44 @@ export default function App() {
         onResetDefaults={handleResetDefaults}
         editingProduct={editingProduct}
         setEditingProduct={setEditingProduct}
+        onViewProductDetails={(p) => setSelectedProduct(p)}
+      />
+
+      {/* Camera QR & Barcode Scanner Modal */}
+      <ProductScannerModal
+        isOpen={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        products={products}
+        isAdmin={isAdmin}
+        onSelectProduct={(p) => {
+          setSelectedProduct(p);
+          setIsScannerModalOpen(false);
+        }}
+        onAddProductWithScannedData={(data) => {
+          setIsScannerModalOpen(false);
+          setEditingProduct({
+            id: '',
+            name: data.name || '',
+            price: data.price || 0,
+            originalPrice: data.originalPrice,
+            category: data.category || 'Whey Protein',
+            availability: 'In Stock',
+            description: data.description || '',
+            imageUrl: data.imageUrl || '',
+            brand: data.brand || 'AD Nutrition Hub',
+            weightOrSize: data.weightOrSize || '',
+            flavour: data.flavour || '',
+            createdAt: ''
+          } as Product);
+          setIsAdminModalOpen(true);
+        }}
+      />
+
+      {/* Product QR Shelf Tag / Share Modal */}
+      <ProductQRModal
+        product={qrModalProduct}
+        isOpen={Boolean(qrModalProduct)}
+        onClose={() => setQrModalProduct(null)}
       />
     </div>
   );

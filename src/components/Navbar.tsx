@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -11,6 +11,7 @@ interface NavbarProps {
   activeSection: string;
   onNavigate: (section: string) => void;
   onOpenAndroidModal?: () => void;
+  onOpenScanner?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,7 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAddProduct,
   activeSection,
   onNavigate,
-  onOpenAndroidModal
+  onOpenAndroidModal,
+  onOpenScanner
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
@@ -133,6 +135,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Android App Button */}
             <PWAInstallButton onOpenModal={onOpenAndroidModal || (() => {})} variant="nav" />
+
+            {/* Quick Scan QR Code Button */}
+            {onOpenScanner && (
+              <button
+                onClick={onOpenScanner}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-500/50 text-neutral-300 hover:text-amber-400 text-xs sm:text-sm font-semibold transition-colors"
+                id="navbar-scan-qr-btn"
+                title="Scan Product QR or Barcode"
+              >
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span className="hidden md:inline">Scan QR</span>
+              </button>
+            )}
 
             {/* User / Google Auth Button */}
             {currentUser ? (
@@ -252,6 +267,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }} 
               variant="mobile" 
             />
+            {onOpenScanner && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenScanner();
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-sm font-semibold text-amber-400 hover:bg-neutral-850"
+                id="mobile-nav-scan-qr"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Scan Product QR / Barcode</span>
+              </button>
+            )}
             <a
               href={`tel:${STORE_INFO.phone}`}
               className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-sm font-medium text-neutral-200"

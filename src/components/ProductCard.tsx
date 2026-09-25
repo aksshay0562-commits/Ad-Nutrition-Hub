@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube } from 'lucide-react';
+import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube, QrCode } from 'lucide-react';
 import { Product } from '../types';
 import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
 
 interface ProductCardProps {
   product: Product;
   onViewDetails: (product: Product) => void;
+  onShowQR?: (product: Product) => void;
   isAdmin?: boolean;
   onEdit?: (product: Product) => void;
   onDelete?: (product: Product) => void;
@@ -16,6 +17,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onViewDetails,
+  onShowQR,
   isAdmin = false,
   onEdit,
   onDelete,
@@ -97,18 +99,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        {/* Quick View Overlay Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewDetails(product);
-          }}
-          className="absolute bottom-3 right-3 p-2 rounded-lg bg-neutral-900/90 text-neutral-200 hover:text-white hover:bg-neutral-800 border border-neutral-700 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Quick View"
-          id={`quick-view-btn-${product.id}`}
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+        {/* Quick View and QR Overlay Buttons */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onShowQR && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowQR(product);
+              }}
+              className="p-2 rounded-lg bg-neutral-900/90 text-neutral-300 hover:text-amber-400 hover:bg-neutral-800 border border-neutral-700 shadow-md transition-colors"
+              title="Show Product QR Code"
+              id={`quick-qr-btn-${product.id}`}
+            >
+              <QrCode className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(product);
+            }}
+            className="p-2 rounded-lg bg-neutral-900/90 text-neutral-200 hover:text-white hover:bg-neutral-800 border border-neutral-700 shadow-md transition-colors"
+            title="Quick View"
+            id={`quick-view-btn-${product.id}`}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Content Section */}
