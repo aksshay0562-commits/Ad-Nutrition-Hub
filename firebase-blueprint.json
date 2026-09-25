@@ -59,6 +59,18 @@
           "description": "Brand manufacturer name",
           "maxLength": 80
         },
+        "priceHistory": {
+          "type": "array",
+          "description": "Array of historical price checkpoints",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string" },
+              "price": { "type": "number" }
+            },
+            "required": ["date", "price"]
+          }
+        },
         "createdAt": {
           "type": "string",
           "description": "Creation timestamp ISO string"
@@ -171,6 +183,56 @@
         }
       },
       "required": ["customerName", "phone", "message", "status", "createdAt"]
+    },
+    "PriceAlert": {
+      "title": "PriceAlert",
+      "description": "WhatsApp price drop alert subscription for a product",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user ID if signed in"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Product ID for the alert",
+          "maxLength": 128
+        },
+        "productName": {
+          "type": "string",
+          "description": "Product name for the alert",
+          "maxLength": 150
+        },
+        "phone": {
+          "type": "string",
+          "description": "WhatsApp contact number for alerts",
+          "minLength": 10,
+          "maxLength": 20
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer name",
+          "maxLength": 100
+        },
+        "currentPrice": {
+          "type": "number",
+          "description": "Price at the time of subscription"
+        },
+        "targetPrice": {
+          "type": "number",
+          "description": "Desired price or target price threshold"
+        },
+        "status": {
+          "type": "string",
+          "description": "Subscription status",
+          "enum": ["active", "notified", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Alert creation timestamp ISO string"
+        }
+      },
+      "required": ["productId", "productName", "phone", "currentPrice", "targetPrice", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -189,6 +251,10 @@
     "/enquiries/{enquiryId}": {
       "schema": "Enquiry",
       "description": "Customer enquiries readable by admin and the creator"
+    },
+    "/priceAlerts/{alertId}": {
+      "schema": "PriceAlert",
+      "description": "Customer WhatsApp price drop alert subscriptions"
     }
   }
 }

@@ -365,6 +365,46 @@ export async function submitCustomerEnquiry(data: {
   }
 }
 
+// Submit a customer price alert request to Firestore
+export async function submitPriceAlert(data: {
+  productId: string;
+  productName: string;
+  phone: string;
+  currentPrice: number;
+  targetPrice: number;
+  customerName?: string;
+  userId?: string;
+}): Promise<boolean> {
+  const alertId = `alert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  try {
+    const docRef = doc(db, 'priceAlerts', alertId);
+    await setDoc(docRef, sanitizeForFirestore({
+      ...data,
+      id: alertId,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    }));
+    return true;
+  } catch (err) {
+    console.error('Error submitting price alert to Firestore:', err);
+    // Don't crash if Firestore is offline, allow user flow to proceed to WhatsApp
+    return true;
+  }
+}
+
+// Utility for WhatsApp price drop alert subscription URL
+export function buildWhatsAppPriceAlertUrl(
+  product: Product, 
+  targetPrice: number, 
+  customerPhone?: string, 
+  customerName?: string
+): string {
+  const storePhone = '917015959517';
+  const text = `Namaste AD Nutrition Hub Israna! 🙏\n\n🔔 *Price Drop Alert Request*\n🛒 Product: ${product.name}\n💰 Current Store Price: ₹${product.price.toLocaleString('en-IN')}\n🎯 My Desired Price: ₹${targetPrice.toLocaleString('en-IN')}\n${customerName ? `👤 Name: ${customerName}\n` : ''}${customerPhone ? `📱 WhatsApp: ${customerPhone}\n` : ''}\nPlease notify me on this WhatsApp number whenever this product's price drops or if a special festival / bulk offer becomes available at your Mandi Mor, Israna shop!`;
+
+  return `https://wa.me/${storePhone}?text=${encodeURIComponent(text)}`;
+}
+
 // Utility for WhatsApp enquiry URL
 export function buildWhatsAppEnquiryUrl(product?: Product, customMessage?: string): string {
   const phone = '917015959517';

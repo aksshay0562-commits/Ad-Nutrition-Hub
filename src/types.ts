@@ -21,6 +21,19 @@ export interface Product {
   updatedAt?: string;
 }
 
+export interface PriceAlert {
+  id?: string;
+  userId?: string;
+  productId: string;
+  productName: string;
+  phone: string;
+  customerName?: string;
+  currentPrice: number;
+  targetPrice: number;
+  status: 'active' | 'notified' | 'cancelled';
+  createdAt: string;
+}
+
 export const CATEGORIES = [
   'All',
   'Whey Protein',
