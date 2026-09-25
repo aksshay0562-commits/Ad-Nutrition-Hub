@@ -17,11 +17,21 @@ import {
   Barcode,
   Search,
   HelpCircle,
-  ExternalLink
+  ExternalLink,
+  History,
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice } from '../services/productService';
 import { triggerHaptic } from '../utils/haptics';
+
+export interface RecentScanItem {
+  id: string;
+  code: string;
+  timestamp: number;
+  product: Product;
+}
 
 interface ProductScannerModalProps {
   isOpen: boolean;
@@ -62,6 +72,19 @@ function playScanChime() {
   triggerHaptic('success');
 }
 
+// Helper to format time ago for recent scans
+function formatTimeAgo(timestamp: number): string {
+  if (!timestamp) return 'Recently';
+  const diff = Math.max(0, Date.now() - timestamp);
+  const mins = Math.floor(diff / (1000 * 60));
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / (1000 * 60 * 60 * 24));
+  return `${days}d ago`;
+}
+
 export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
   isOpen,
   onClose,
@@ -81,6 +104,99 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualCodeInput, setManualCodeInput] = useState('');
+
+  // Recent scans state (stores up to 5 items)
+  const [recentScans, setRecentScans] = useState<RecentScanItem[]>([]);
+
+  // Load and hydrate recent scans from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ad_nutrition_recent_scans');
+      if (raw) {
+        const parsed: Array<{ id: string; code: string; timestamp: number; product?: Product }> = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Re-hydrate with fresh product state from products array
+          const hydrated: RecentScanItem[] = parsed
+            .map((item) => {
+              const currentProd = products.find((p) => p.id === item.id) || item.product;
+              return {
+                id: item.id,
+                code: item.code || item.id,
+                timestamp: item.timestamp || Date.now(),
+                product: currentProd as Product
+              };
+            })
+            .filter((item) => Boolean(item.product));
+
+          setRecentScans(hydrated.slice(0, 5));
+          return;
+        }
+      }
+
+      // If initial visit and no scans recorded yet, populate with first 2 products for immediate demonstration
+      if (products.length > 0 && raw === null) {
+        const initialDemo: RecentScanItem[] = products.slice(0, 2).map((prod, idx) => ({
+          id: prod.id,
+          code: prod.id,
+          timestamp: Date.now() - (idx + 1) * 8 * 60 * 1000,
+          product: prod
+        }));
+        setRecentScans(initialDemo);
+        try {
+          localStorage.setItem('ad_nutrition_recent_scans', JSON.stringify(initialDemo));
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Error loading recent scans:', err);
+    }
+  }, [products]);
+
+  // Record a product scan into recent scans (deduplicated, max 5)
+  const recordRecentScan = (code: string, product: Product) => {
+    if (!product || !product.id) return;
+    setRecentScans((prev) => {
+      const filtered = prev.filter((item) => item.product?.id !== product.id && item.id !== product.id);
+      const newItem: RecentScanItem = {
+        id: product.id,
+        code,
+        timestamp: Date.now(),
+        product
+      };
+      const updated = [newItem, ...filtered].slice(0, 5);
+      try {
+        localStorage.setItem('ad_nutrition_recent_scans', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const clearRecentScans = () => {
+    triggerHaptic('light');
+    setRecentScans([]);
+    try {
+      localStorage.setItem('ad_nutrition_recent_scans', JSON.stringify([]));
+    } catch {}
+  };
+
+  const removeRecentScan = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    triggerHaptic('light');
+    setRecentScans((prev) => {
+      const updated = prev.filter((item) => item.id !== productId && item.product?.id !== productId);
+      try {
+        localStorage.setItem('ad_nutrition_recent_scans', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const handleRevisitProduct = (product: Product) => {
+    triggerHaptic('light');
+    onSelectProduct(product);
+    if (!inlineMode) {
+      onClose();
+    }
+  };
 
   // Scanned state
   const [scannedResult, setScannedResult] = useState<{
@@ -254,6 +370,10 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
           p.description?.includes(cleanText) ||
           p.id.toLowerCase().includes(cleanText.toLowerCase())
       ) || null;
+    }
+
+    if (matched) {
+      recordRecentScan(cleanText, matched);
     }
 
     setScannedResult({
@@ -635,6 +755,129 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
             </p>
           </div>
         )}
+
+        {/* Recent Scans Section (Last 5 Products) */}
+        <div id="scanner-recent-scans-section" className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <History className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  <span>Recent Scans</span>
+                  {recentScans.length > 0 && (
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      {recentScans.length} / 5
+                    </span>
+                  )}
+                </h4>
+                <p className="text-[11px] text-neutral-400">
+                  Quickly revisit your last 5 scanned products without rescanning
+                </p>
+              </div>
+            </div>
+
+            {recentScans.length > 0 && (
+              <button
+                type="button"
+                onClick={clearRecentScans}
+                className="text-[11px] font-semibold text-neutral-400 hover:text-red-400 flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition-colors"
+                title="Clear recent scan history"
+                id="scanner-clear-recent-scans-btn"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
+
+          {recentScans.length === 0 ? (
+            <div className="py-6 px-4 rounded-xl border border-dashed border-neutral-800/80 bg-neutral-900/30 text-center flex flex-col items-center justify-center gap-1.5">
+              <Clock className="w-5 h-5 text-neutral-600 mb-1" />
+              <p className="text-xs font-semibold text-neutral-300">No products scanned yet</p>
+              <p className="text-[11px] text-neutral-500 max-w-xs">
+                Scan any supplement QR or packaging barcode above to quickly access it here without rescanning.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentScans.map((item, index) => (
+                <div
+                  key={`${item.id}-${item.timestamp}-${index}`}
+                  id={`recent-scan-${item.id}`}
+                  onClick={() => handleRevisitProduct(item.product)}
+                  className="group relative flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-850 border border-neutral-800 hover:border-amber-500/40 transition-all duration-200 cursor-pointer shadow-sm"
+                  title="Click to revisit product details"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+                    <div className="relative shrink-0">
+                      <img
+                        src={item.product.imageUrl}
+                        alt={item.product.name}
+                        className="w-12 h-12 rounded-lg object-cover bg-neutral-950 border border-neutral-800 group-hover:border-amber-500/40"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=300&q=80';
+                        }}
+                      />
+                      <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-neutral-800 border border-neutral-700 text-[9px] font-bold text-neutral-300 flex items-center justify-center">
+                        {index + 1}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                          {item.product.category}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 flex items-center gap-0.5">
+                          <Clock className="w-2.5 h-2.5" />
+                          {formatTimeAgo(item.timestamp)}
+                        </span>
+                      </div>
+                      <h5 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                        {item.product.name}
+                      </h5>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs">
+                        <span className="font-extrabold text-amber-400">
+                          {formatPrice(item.product.price)}
+                        </span>
+                        <span className="text-neutral-500">•</span>
+                        <span className={`text-[11px] font-medium ${item.product.availability === 'In Stock' ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {item.product.availability}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      id={`recent-scan-revisit-${item.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRevisitProduct(item.product);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-neutral-950 border border-amber-500/30 text-xs font-bold flex items-center gap-1 transition-all"
+                      title="Revisit product details"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Revisit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => removeRecentScan(e, item.id)}
+                      className="p-1.5 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors"
+                      title="Remove from recent scans"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Manual Code Input Bar */}
         <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2">
