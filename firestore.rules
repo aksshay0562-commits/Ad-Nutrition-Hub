@@ -37,7 +37,7 @@ service cloud.firestore {
 
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'price', 'category', 'availability', 'description', 'imageUrl']) &&
-        data.keys().hasOnly(['id', 'name', 'price', 'originalPrice', 'category', 'weightOrSize', 'flavour', 'availability', 'description', 'imageUrl', 'featured', 'brand', 'priceHistory', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'price', 'originalPrice', 'category', 'weightOrSize', 'flavour', 'availability', 'description', 'imageUrl', 'featured', 'brand', 'youtubeUrl', 'priceHistory', 'createdAt', 'updatedAt']) &&
         data.name is string && data.name.size() >= 2 && data.name.size() <= 150 &&
         data.price is number && data.price >= 0 &&
         (!('originalPrice' in data) || (data.originalPrice is number && data.originalPrice >= 0)) &&
@@ -49,6 +49,7 @@ service cloud.firestore {
         data.imageUrl is string && data.imageUrl.size() <= 1500000 &&
         (!('featured' in data) || data.featured is bool) &&
         (!('brand' in data) || (data.brand is string && data.brand.size() <= 100)) &&
+        (!('youtubeUrl' in data) || (data.youtubeUrl is string && data.youtubeUrl.size() <= 300)) &&
         (!('priceHistory' in data) || data.priceHistory is list) &&
         (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 40)) &&
         (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 40));

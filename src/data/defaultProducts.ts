@@ -14,6 +14,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Hyper Nutrition",
+    youtubeUrl: "https://www.youtube.com/watch?v=Fj7rKq07J04",
     priceHistory: [
       { date: "May 2026", price: 4600 },
       { date: "Jun 2026", price: 4350 },
@@ -36,6 +37,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Hyper Nutrition",
+    youtubeUrl: "https://www.youtube.com/watch?v=W55V4rG2yv8",
     priceHistory: [
       { date: "May 2026", price: 4200 },
       { date: "Jun 2026", price: 3900 },
@@ -146,6 +148,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "AD Nutrition",
+    youtubeUrl: "https://www.youtube.com/watch?v=25Pms_yq0oY",
     priceHistory: [
       { date: "May 2026", price: 1400 },
       { date: "Jun 2026", price: 1250 },
@@ -168,6 +171,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80",
     featured: true,
     brand: "Thunder Lab",
+    youtubeUrl: "https://www.youtube.com/watch?v=s4w99x0L1Jk",
     priceHistory: [
       { date: "May 2026", price: 1999 },
       { date: "Jun 2026", price: 1800 },

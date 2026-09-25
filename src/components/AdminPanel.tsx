@@ -14,10 +14,11 @@ import {
   RefreshCw, 
   AlertCircle,
   Eye,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Youtube
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
-import { formatPrice } from '../services/productService';
+import { formatPrice, getYoutubeVideoId } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { LogIn } from 'lucide-react';
 import { compressImage } from '../utils/imageCompressor';
@@ -81,6 +82,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [brand, setBrand] = useState('AD Nutrition Hub');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [featured, setFeatured] = useState(false);
 
   // Sync with editingProduct when it changes
@@ -102,6 +104,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setBrand(editingProduct.brand || 'AD Nutrition Hub');
       setDescription(editingProduct.description || '');
       setImageUrl(editingProduct.imageUrl || '');
+      setYoutubeUrl(editingProduct.youtubeUrl || '');
       setFeatured(Boolean(editingProduct.featured));
       setActiveTab('form');
     } else {
@@ -121,6 +124,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setBrand('AD Nutrition Hub');
     setDescription('');
     setImageUrl('');
+    setYoutubeUrl('');
     setFeatured(false);
     setEditingProduct(null);
   };
@@ -201,6 +205,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           description: description.trim(),
           imageUrl: finalImageUrl,
           featured,
+          youtubeUrl: youtubeUrl.trim() || undefined,
           priceHistory: updatedPriceHistory.length > 0 ? updatedPriceHistory : undefined,
           ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
           ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
@@ -222,6 +227,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           description: description.trim(),
           imageUrl: finalImageUrl,
           featured,
+          youtubeUrl: youtubeUrl.trim() || undefined,
           priceHistory: initialPriceHistory,
           ...(parsedOriginalPrice && !isNaN(parsedOriginalPrice) ? { originalPrice: parsedOriginalPrice } : {}),
           ...(cleanWeight ? { weightOrSize: cleanWeight } : {}),
@@ -655,6 +661,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700 text-white text-sm focus:outline-none focus:border-amber-500"
                     id="form-product-desc"
                   />
+                </div>
+
+                {/* YouTube Video Review / Guide Link */}
+                <div className="space-y-2 p-4 rounded-xl bg-neutral-950/80 border border-neutral-800">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-neutral-300 flex items-center gap-2">
+                      <div className="w-5 h-5 rounded bg-red-600/20 text-red-500 flex items-center justify-center">
+                        <Youtube className="w-3.5 h-3.5" />
+                      </div>
+                      <span>YouTube Video Review or Guide Link (Optional)</span>
+                    </label>
+                    {youtubeUrl && getYoutubeVideoId(youtubeUrl) && (
+                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Valid Video ID: {getYoutubeVideoId(youtubeUrl)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-3 text-red-500 pointer-events-none">
+                      <Youtube className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm focus:outline-none focus:border-red-500 transition-colors"
+                      id="form-product-youtube"
+                    />
+                  </div>
+
+                  {youtubeUrl && getYoutubeVideoId(youtubeUrl) && (
+                    <div className="flex items-center gap-3 pt-1">
+                      <img 
+                        src={`https://img.youtube.com/vi/${getYoutubeVideoId(youtubeUrl)}/mqdefault.jpg`} 
+                        alt="YouTube Thumbnail Preview" 
+                        className="w-20 h-12 object-cover rounded-lg border border-neutral-700 shrink-0" 
+                      />
+                      <div className="text-xs text-neutral-300">
+                        <p className="font-semibold text-white">Video detected successfully!</p>
+                        <p className="text-[11px] text-neutral-400">Shoppers will be able to watch this video review directly inside the product details modal.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-neutral-500">
+                    Paste any YouTube video link (supplement review, lab test, unboxing, or workout dosage guide).
+                  </p>
                 </div>
 
                 {/* Product Image Section: Upload or Preset or URL */}

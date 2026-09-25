@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag } from 'lucide-react';
+import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube } from 'lucide-react';
 import { Product } from '../types';
 import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
 
@@ -64,8 +64,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           ) : null}
         </div>
 
-        {/* Stock Status Badge at bottom left of image */}
-        <div className="absolute bottom-3 left-3">
+        {/* Stock Status Badge & YouTube Badge at bottom left of image */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold backdrop-blur-md border ${
               isInStock
@@ -85,6 +85,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </>
             )}
           </span>
+
+          {product.youtubeUrl && (
+            <span 
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wide bg-red-600/90 text-white border border-red-500/80 backdrop-blur-md shadow-sm"
+              title="Includes Video Review & Guide"
+            >
+              <Youtube className="w-3 h-3 fill-white" />
+              <span>Video</span>
+            </span>
+          )}
         </div>
 
         {/* Quick View Overlay Button */}

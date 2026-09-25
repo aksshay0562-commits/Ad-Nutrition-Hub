@@ -424,3 +424,26 @@ export function buildWhatsAppEnquiryUrl(product?: Product, customMessage?: strin
 export function formatPrice(num: number): string {
   return `₹${num.toLocaleString('en-IN')}`;
 }
+
+// Extract YouTube video ID from various link formats (watch, share, shorts, embed)
+export function getYoutubeVideoId(url: string | undefined | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // Direct 11 character ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = trimmed.match(regExp);
+  return match ? match[1] : null;
+}
+
+// Convert any YouTube link into a privacy-friendly embed URL
+export function getYoutubeEmbedUrl(url: string | undefined | null): string | null {
+  const videoId = getYoutubeVideoId(url);
+  return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0` : null;
+}
+

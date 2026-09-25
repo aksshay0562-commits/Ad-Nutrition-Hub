@@ -19,7 +19,9 @@ import {
   Check,
   ArrowRight,
   Smartphone,
-  ExternalLink
+  ExternalLink,
+  Youtube,
+  Play
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -37,7 +39,9 @@ import {
   formatPrice, 
   submitCustomerEnquiry,
   submitPriceAlert,
-  buildWhatsAppPriceAlertUrl
+  buildWhatsAppPriceAlertUrl,
+  getYoutubeEmbedUrl,
+  getYoutubeVideoId
 } from '../services/productService';
 
 interface ProductDetailsModalProps {
@@ -722,6 +726,56 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               {product.description}
             </p>
           </div>
+
+          {/* YouTube Video Review & Guide Block */}
+          {product.youtubeUrl && getYoutubeEmbedUrl(product.youtubeUrl) && (
+            <div className="space-y-3 pt-2 border-t border-neutral-800" id="product-youtube-video-section">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-red-600/20 text-red-500 flex items-center justify-center">
+                    <Youtube className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>Video Review & Supplement Guide</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-800 font-extrabold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                        YouTube
+                      </span>
+                    </h3>
+                  </div>
+                </div>
+
+                <a
+                  href={product.youtubeUrl.startsWith('http') ? product.youtubeUrl : `https://www.youtube.com/watch?v=${getYoutubeVideoId(product.youtubeUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-red-400 transition-colors font-semibold"
+                  title="Open video in YouTube app or new tab"
+                >
+                  <span>Watch on YouTube</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              {/* Responsive Embedded YouTube Player */}
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-neutral-950 border border-neutral-800 shadow-2xl">
+                <iframe
+                  src={getYoutubeEmbedUrl(product.youtubeUrl) || ''}
+                  title={`${product.name} Video Review & Guide`}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between text-[11px] text-neutral-400 gap-2">
+                <span>Detailed supplement breakdown, timing, workout dosage, and genuine product verification.</span>
+                <span className="text-neutral-500 font-medium">AD Nutrition Hub Israna</span>
+              </div>
+            </div>
+          )}
 
           {/* Authenticity Guarantee Callout */}
           <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3.5">

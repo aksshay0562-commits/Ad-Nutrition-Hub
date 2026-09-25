@@ -16,6 +16,7 @@ export interface Product {
   imageUrl: string;
   featured?: boolean;
   brand?: string;
+  youtubeUrl?: string;
   priceHistory?: PriceHistoryPoint[];
   createdAt: string;
   updatedAt?: string;

@@ -59,6 +59,11 @@
           "description": "Brand manufacturer name",
           "maxLength": 80
         },
+        "youtubeUrl": {
+          "type": "string",
+          "description": "YouTube video review or usage guide link",
+          "maxLength": 300
+        },
         "priceHistory": {
           "type": "array",
           "description": "Array of historical price checkpoints",
