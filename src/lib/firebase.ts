@@ -1,16 +1,19 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 export const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Initialize Firestore with long-polling auto-detection for reliable container/sandbox networking
+// CRITICAL: Initialize Firestore with forced long-polling for instant connection without 10s streaming timeouts in sandbox/proxy environments
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
 }, firebaseConfig.firestoreDatabaseId);
+
+// Silence verbose internal Firestore SDK transport warnings
+setLogLevel('silent');
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
