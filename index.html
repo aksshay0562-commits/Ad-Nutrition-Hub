@@ -20,7 +20,10 @@
           return lower.indexOf('[vite]') !== -1 || 
                  lower.indexOf('vite:') !== -1 || 
                  lower.indexOf('vite-hmr') !== -1 || 
+                 lower.indexOf('vite-ping') !== -1 ||
                  lower.indexOf('websocket') !== -1 ||
+                 lower.indexOf('ws://') !== -1 ||
+                 lower.indexOf('wss://') !== -1 ||
                  lower.indexOf('could not reach cloud firestore backend') !== -1 ||
                  lower.indexOf('client will operate in offline mode') !== -1 ||
                  lower.indexOf('backend didn\'t respond within 10 seconds') !== -1 ||
@@ -38,7 +41,8 @@
                            protoStr.indexOf('vite-ping') !== -1 ||
                            urlStr.indexOf('token=') !== -1 ||
                            urlStr.indexOf('24678') !== -1 ||
-                           urlStr.indexOf('@vite') !== -1;
+                           urlStr.indexOf('@vite') !== -1 ||
+                           urlStr.indexOf('localhost:5173') !== -1;
 
               if (!isVite) {
                 return new OrigWebSocket(url, protocols);
@@ -47,7 +51,7 @@
               var target = new EventTarget();
               target.url = urlStr;
               target.protocol = protoStr;
-              target.readyState = 0;
+              target.readyState = 1; // Immediately OPEN to satisfy any isOpened check
               target.CONNECTING = 0;
               target.OPEN = 1;
               target.CLOSING = 2;
@@ -57,6 +61,7 @@
                 target.readyState = 3;
               };
 
+              // Dispatch open event asynchronously as well
               setTimeout(function() {
                 target.readyState = 1;
                 var evt = new Event('open');
@@ -64,7 +69,7 @@
                 if (typeof target.onopen === 'function') {
                   try { target.onopen(evt); } catch(e) {}
                 }
-              }, 5);
+              }, 1);
 
               return target;
             }
@@ -78,8 +83,19 @@
           }
         } catch(err) {}
 
+        var prevOnError = window.onerror;
+        window.onerror = function(msg, url, line, col, error) {
+          if (isBenignSystemError(msg) || isBenignSystemError(error)) {
+            return true;
+          }
+          if (typeof prevOnError === 'function') {
+            return prevOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
         window.addEventListener('error', function(e) {
-          if (isBenignSystemError(e) || isBenignSystemError(e.message) || isBenignSystemError(e.error)) {
+          if (isBenignSystemError(e) || isBenignSystemError(e.message) || isBenignSystemError(e.error) || isBenignSystemError(e.filename)) {
             e.stopImmediatePropagation();
             e.preventDefault();
             return true;

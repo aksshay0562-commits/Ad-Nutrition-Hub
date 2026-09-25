@@ -396,6 +396,52 @@ app.get('/api/store-info', (req, res) => {
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    // Intercept /@vite/client in dev to avoid failing WebSocket connection attempts in the AI Studio sandboxed iframe
+    app.get('/@vite/client', (req, res) => {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(`
+        export class ErrorOverlay extends HTMLElement {}
+        if (typeof customElements !== 'undefined' && !customElements.get('vite-error-overlay')) {
+          customElements.define('vite-error-overlay', ErrorOverlay);
+        }
+
+        export function createHotContext(ownerPath) {
+          return {
+            accept(deps, cb) {},
+            dispose(cb) {},
+            prune(cb) {},
+            invalidate(message) {},
+            decline() {},
+            on(event, cb) {},
+            send(event, data) {},
+            data: {}
+          };
+        }
+
+        export function updateStyle(id, content) {
+          let style = document.getElementById(id);
+          if (!style) {
+            style = document.createElement('style');
+            style.id = id;
+            document.head.appendChild(style);
+          }
+          style.textContent = content;
+        }
+
+        export function removeStyle(id) {
+          const style = document.getElementById(id);
+          if (style) {
+            style.remove();
+          }
+        }
+
+        export function injectQuery(url, queryToInject) {
+          return url;
+        }
+      `);
+    });
+
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: "spa",
