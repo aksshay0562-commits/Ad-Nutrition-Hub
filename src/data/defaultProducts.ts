@@ -22,6 +22,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 3950 },
       { date: "Sep 2026", price: 3800 }
     ],
+    views: 1420,
+    salesCount: 420,
     createdAt: new Date().toISOString()
   },
   {
@@ -45,6 +47,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 3450 },
       { date: "Sep 2026", price: 3300 }
     ],
+    views: 1180,
+    salesCount: 350,
     createdAt: new Date().toISOString()
   },
   {
@@ -67,6 +71,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 2600 },
       { date: "Sep 2026", price: 2500 }
     ],
+    views: 890,
+    salesCount: 260,
     createdAt: new Date().toISOString()
   },
   {
@@ -89,6 +95,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 2300 },
       { date: "Sep 2026", price: 2209 }
     ],
+    views: 650,
+    salesCount: 180,
     createdAt: new Date().toISOString()
   },
   {
@@ -111,6 +119,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 2600 },
       { date: "Sep 2026", price: 2500 }
     ],
+    views: 520,
+    salesCount: 140,
     createdAt: new Date().toISOString()
   },
   {
@@ -133,6 +143,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 950 },
       { date: "Sep 2026", price: 900 }
     ],
+    views: 940,
+    salesCount: 310,
     createdAt: new Date().toISOString()
   },
   {
@@ -156,6 +168,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 1050 },
       { date: "Sep 2026", price: 999 }
     ],
+    views: 1350,
+    salesCount: 410,
     createdAt: new Date().toISOString()
   },
   {
@@ -179,6 +193,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 1550 },
       { date: "Sep 2026", price: 1450 }
     ],
+    views: 1080,
+    salesCount: 320,
     createdAt: new Date().toISOString()
   },
   {
@@ -201,6 +217,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 1750 },
       { date: "Sep 2026", price: 1650 }
     ],
+    views: 720,
+    salesCount: 195,
     createdAt: new Date().toISOString()
   },
   {
@@ -223,6 +241,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 2200 },
       { date: "Sep 2026", price: 2100 }
     ],
+    views: 810,
+    salesCount: 225,
     createdAt: new Date().toISOString()
   },
   {
@@ -245,6 +265,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 380 },
       { date: "Sep 2026", price: 350 }
     ],
+    views: 580,
+    salesCount: 160,
     createdAt: new Date().toISOString()
   },
   {
@@ -267,6 +289,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Aug 2026", price: 480 },
       { date: "Sep 2026", price: 450 }
     ],
+    views: 490,
+    salesCount: 130,
     createdAt: new Date().toISOString()
   }
 ];

@@ -18,6 +18,8 @@ export interface Product {
   brand?: string;
   youtubeUrl?: string;
   priceHistory?: PriceHistoryPoint[];
+  views?: number;
+  salesCount?: number;
   createdAt: string;
   updatedAt?: string;
 }

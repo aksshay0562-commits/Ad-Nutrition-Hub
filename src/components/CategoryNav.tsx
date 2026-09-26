@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Filter, Sparkles, Check, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Sparkles, Check, Clock, Tag } from 'lucide-react';
 import { CATEGORIES } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -15,22 +15,24 @@ interface CategoryMeta {
   shortLabel: string;
   fullCategory: string;
   icon: string;
-  isSpecial?: boolean;
+  variant?: 'default' | 'sale' | 'new';
+  badgeLabel?: string;
 }
 
 const CATEGORY_METADATA: CategoryMeta[] = [
-  { id: 'All', shortLabel: 'All Products', fullCategory: 'All', icon: '🔥' },
-  { id: 'New Arrivals', shortLabel: 'New Arrivals', fullCategory: 'New Arrivals', icon: '✨', isSpecial: true },
-  { id: 'Whey Protein', shortLabel: 'Protein', fullCategory: 'Whey Protein', icon: '🥛' },
-  { id: 'Mass Gainer', shortLabel: 'Gainers', fullCategory: 'Mass Gainer', icon: '💪' },
-  { id: 'Creatine', shortLabel: 'Creatine', fullCategory: 'Creatine', icon: '⚡' },
-  { id: 'Pre-Workout', shortLabel: 'Pre-Workout', fullCategory: 'Pre-Workout', icon: '🚀' },
-  { id: 'BCAA / EAA', shortLabel: 'Amino / BCAA', fullCategory: 'BCAA / EAA', icon: '🧪' },
-  { id: 'Vitamins & Minerals', shortLabel: 'Vitamins', fullCategory: 'Vitamins & Minerals', icon: '💊' },
-  { id: 'Fitness Accessories', shortLabel: 'Accessories', fullCategory: 'Fitness Accessories', icon: '🏋️' },
-  { id: 'Weight Gain Supplements', shortLabel: 'Weight Gain', fullCategory: 'Weight Gain Supplements', icon: '⚖️' },
-  { id: 'Maximum Strength', shortLabel: 'Strength', fullCategory: 'Maximum Strength', icon: '💥' },
-  { id: 'Dietary Supplements', shortLabel: 'Dietary', fullCategory: 'Dietary Supplements', icon: '🌿' },
+  { id: 'All', shortLabel: 'All Products', fullCategory: 'All', icon: '🔥', variant: 'default' },
+  { id: 'On Sale', shortLabel: 'On Sale', fullCategory: 'On Sale', icon: '🏷️', variant: 'sale', badgeLabel: 'Sale' },
+  { id: 'New Arrivals', shortLabel: 'New Arrivals', fullCategory: 'New Arrivals', icon: '✨', variant: 'new', badgeLabel: '7d' },
+  { id: 'Whey Protein', shortLabel: 'Protein', fullCategory: 'Whey Protein', icon: '🥛', variant: 'default' },
+  { id: 'Mass Gainer', shortLabel: 'Gainers', fullCategory: 'Mass Gainer', icon: '💪', variant: 'default' },
+  { id: 'Creatine', shortLabel: 'Creatine', fullCategory: 'Creatine', icon: '⚡', variant: 'default' },
+  { id: 'Pre-Workout', shortLabel: 'Pre-Workout', fullCategory: 'Pre-Workout', icon: '🚀', variant: 'default' },
+  { id: 'BCAA / EAA', shortLabel: 'Amino / BCAA', fullCategory: 'BCAA / EAA', icon: '🧪', variant: 'default' },
+  { id: 'Vitamins & Minerals', shortLabel: 'Vitamins', fullCategory: 'Vitamins & Minerals', icon: '💊', variant: 'default' },
+  { id: 'Fitness Accessories', shortLabel: 'Accessories', fullCategory: 'Fitness Accessories', icon: '🏋️', variant: 'default' },
+  { id: 'Weight Gain Supplements', shortLabel: 'Weight Gain', fullCategory: 'Weight Gain Supplements', icon: '⚖️', variant: 'default' },
+  { id: 'Maximum Strength', shortLabel: 'Strength', fullCategory: 'Maximum Strength', icon: '💥', variant: 'default' },
+  { id: 'Dietary Supplements', shortLabel: 'Dietary', fullCategory: 'Dietary Supplements', icon: '🌿', variant: 'default' },
 ];
 
 export const CategoryNav: React.FC<CategoryNavProps> = ({
@@ -113,7 +115,12 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
             Filter by Category
           </span>
-          {selectedCategory === 'New Arrivals' ? (
+          {selectedCategory === 'On Sale' ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[10.5px] font-extrabold uppercase">
+              <Tag className="w-3 h-3 text-rose-400 animate-pulse" />
+              <span>Discount Deals & Price Drops</span>
+            </span>
+          ) : selectedCategory === 'New Arrivals' ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10.5px] font-extrabold uppercase">
               <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
               <span>Added in Last 7 Days</span>
@@ -186,21 +193,44 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             const count = categoryCounts[item.fullCategory] || 0;
             const isSelected = selectedCategory === item.fullCategory;
 
+            // Class styles depending on variant (sale, new, default)
+            let pillClass = 'bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 hover:border-neutral-700';
+            let badgeClass = 'bg-neutral-800 text-neutral-400 group-hover:text-neutral-200 group-hover:bg-neutral-700';
+            let tagClass = 'bg-neutral-800/80 text-neutral-400';
+
+            if (isSelected) {
+              if (item.variant === 'sale') {
+                pillClass = 'bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 text-white shadow-lg shadow-red-500/30 ring-2 ring-rose-400/60 scale-[1.03] font-black';
+                badgeClass = 'bg-neutral-950/40 text-white';
+                tagClass = 'bg-neutral-950/30 text-white';
+              } else if (item.variant === 'new') {
+                pillClass = 'bg-gradient-to-r from-emerald-500 to-teal-400 text-neutral-950 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 scale-[1.03] font-black';
+                badgeClass = 'bg-neutral-950 text-amber-300 shadow-sm';
+                tagClass = 'bg-neutral-950/20 text-neutral-950';
+              } else {
+                pillClass = 'bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/50 scale-[1.03] font-black';
+                badgeClass = 'bg-neutral-950 text-amber-300 shadow-sm';
+                tagClass = 'bg-neutral-950/20 text-neutral-950';
+              }
+            } else {
+              if (item.variant === 'sale') {
+                pillClass = 'bg-gradient-to-r from-red-950/60 to-neutral-900 border border-red-500/40 text-red-300 hover:text-red-200 hover:border-red-400 shadow-sm';
+                badgeClass = 'bg-red-950 text-red-400 border border-red-800/60';
+                tagClass = 'bg-red-500/20 text-red-300 border border-red-500/30';
+              } else if (item.variant === 'new') {
+                pillClass = 'bg-gradient-to-r from-emerald-950/60 to-neutral-900 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 shadow-sm';
+                badgeClass = 'bg-emerald-950 text-emerald-400 border border-emerald-800/60';
+                tagClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+              }
+            }
+
             return (
               <button
                 key={item.fullCategory}
                 ref={isSelected ? activePillRef : null}
                 type="button"
                 onClick={() => handlePillClick(item.fullCategory)}
-                className={`group inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer select-none ${
-                  isSelected
-                    ? item.isSpecial
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-neutral-950 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 scale-[1.03]'
-                      : 'bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/50 scale-[1.03]'
-                    : item.isSpecial
-                    ? 'bg-gradient-to-r from-emerald-950/60 to-neutral-900 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 shadow-sm'
-                    : 'bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 hover:border-neutral-700'
-                }`}
+                className={`group inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer select-none ${pillClass}`}
                 id={`filter-pill-${item.id.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                 title={`Filter by ${item.fullCategory} (${count} products)`}
               >
@@ -209,33 +239,23 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
                   {item.icon}
                 </span>
 
-                {/* Primary Short Label (e.g. New Arrivals, Protein, Gainers, Vitamins, Accessories) */}
+                {/* Primary Short Label */}
                 <span className="tracking-tight">
                   {item.shortLabel}
                 </span>
 
-                {/* Special 7d pill indicator */}
-                {item.isSpecial && (
+                {/* Special Tag (e.g. Sale or 7d) */}
+                {item.badgeLabel && (
                   <span
-                    className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full ${
-                      isSelected
-                        ? 'bg-neutral-950/20 text-neutral-950'
-                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    }`}
+                    className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full ${tagClass}`}
                   >
-                    7d
+                    {item.badgeLabel}
                   </span>
                 )}
 
                 {/* Counter Badge */}
                 <span
-                  className={`text-[10.5px] px-1.5 py-0.2 rounded-full font-black leading-tight transition-colors ${
-                    isSelected
-                      ? 'bg-neutral-950 text-amber-300 shadow-sm'
-                      : item.isSpecial
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
-                      : 'bg-neutral-800 text-neutral-400 group-hover:text-neutral-200 group-hover:bg-neutral-700'
-                  }`}
+                  className={`text-[10.5px] px-1.5 py-0.2 rounded-full font-black leading-tight transition-colors ${badgeClass}`}
                 >
                   {count}
                 </span>

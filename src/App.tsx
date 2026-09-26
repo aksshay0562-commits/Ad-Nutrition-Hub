@@ -61,7 +61,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
-  const [priceSort, setPriceSort] = useState<'default' | 'low-to-high' | 'high-to-low'>('default');
+  const [priceSort, setPriceSort] = useState<'default' | 'popularity' | 'low-to-high' | 'high-to-low'>('default');
   
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -342,6 +342,11 @@ export default function App() {
     showToast('Catalog reset to initial seed products.');
   };
 
+  // Helper to determine if product is on sale (originalPrice > price)
+  const isProductOnSale = (product: Product): boolean => {
+    return Boolean(product.originalPrice && product.originalPrice > product.price);
+  };
+
   // Helper to determine if product was added in the last 7 days
   const isProductNewArrival = (product: Product): boolean => {
     if (!product.createdAt) return false;
@@ -355,6 +360,7 @@ export default function App() {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { 
       All: products.length,
+      'On Sale': products.filter(isProductOnSale).length,
       'New Arrivals': products.filter(isProductNewArrival).length
     };
     CATEGORIES.forEach((cat) => {
@@ -368,8 +374,12 @@ export default function App() {
   // Filtered & Sorted products list
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      // Category filter (including 'New Arrivals' for products added in the last 7 days)
-      if (selectedCategory === 'New Arrivals') {
+      // Category filter (including 'On Sale' and 'New Arrivals')
+      if (selectedCategory === 'On Sale') {
+        if (!isProductOnSale(product)) {
+          return false;
+        }
+      } else if (selectedCategory === 'New Arrivals') {
         if (!isProductNewArrival(product)) {
           return false;
         }
@@ -400,6 +410,27 @@ export default function App() {
 
       return true;
     }).sort((a, b) => {
+      if (priceSort === 'popularity') {
+        // 1. Sort by salesCount if available
+        if (typeof a.salesCount === 'number' || typeof b.salesCount === 'number') {
+          const salesA = a.salesCount ?? (a.featured ? 50 : 0);
+          const salesB = b.salesCount ?? (b.featured ? 50 : 0);
+          if (salesA !== salesB) return salesB - salesA;
+        }
+
+        // 2. Sort by views if available
+        if (typeof a.views === 'number' || typeof b.views === 'number') {
+          const viewsA = a.views ?? (a.featured ? 200 : 0);
+          const viewsB = b.views ?? (b.featured ? 200 : 0);
+          if (viewsA !== viewsB) return viewsB - viewsA;
+        }
+
+        // 3. Move 'featured' products to the top of the list when selected
+        if (a.featured && !b.featured) return -1;
+        if (!a.featured && b.featured) return 1;
+
+        return 0;
+      }
       if (priceSort === 'low-to-high') return a.price - b.price;
       if (priceSort === 'high-to-low') return b.price - a.price;
       return 0;
@@ -633,6 +664,7 @@ export default function App() {
                 id="catalog-price-sort"
               >
                 <option value="default">Sort by: Default</option>
+                <option value="popularity">🔥 Popularity (Most Demanded)</option>
                 <option value="low-to-high">Price: Low to High</option>
                 <option value="high-to-low">Price: High to Low</option>
               </select>
@@ -643,12 +675,17 @@ export default function App() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400 pt-1 border-t border-neutral-800/60">
             <div>
               Showing <strong className="text-white">{filteredProducts.length}</strong> of {products.length} supplements
-              {selectedCategory === 'New Arrivals' ? (
+              {selectedCategory === 'On Sale' ? (
+                <span> in <strong className="text-rose-400">🏷️ On Sale (Discounts & Deals)</strong></span>
+              ) : selectedCategory === 'New Arrivals' ? (
                 <span> in <strong className="text-emerald-400">✨ New Arrivals (Last 7 Days)</strong></span>
               ) : selectedCategory !== 'All' ? (
                 <span> in <strong className="text-amber-400">{selectedCategory}</strong></span>
               ) : null}
               {searchQuery && <span> matching "<span className="text-amber-300">{searchQuery}</span>"</span>}
+              {priceSort === 'popularity' && <span> sorted by <strong className="text-amber-400">🔥 Popularity</strong></span>}
+              {priceSort === 'low-to-high' && <span> sorted by <strong className="text-amber-400">Price: Low to High</strong></span>}
+              {priceSort === 'high-to-low' && <span> sorted by <strong className="text-amber-400">Price: High to Low</strong></span>}
             </div>
 
             {(selectedCategory !== 'All' || searchQuery || stockFilter !== 'all' || priceSort !== 'default') && (
@@ -688,10 +725,16 @@ export default function App() {
           <div className="py-16 px-4 text-center rounded-2xl bg-neutral-900/60 border border-neutral-800 max-w-lg mx-auto space-y-4">
             <PackageX className="w-12 h-12 text-neutral-500 mx-auto" />
             <h3 className="text-lg font-bold text-white">
-              {selectedCategory === 'New Arrivals' ? 'No New Supplements Added in the Last 7 Days' : 'No Supplements Found'}
+              {selectedCategory === 'On Sale'
+                ? 'No Discounted Supplements Right Now'
+                : selectedCategory === 'New Arrivals'
+                ? 'No New Supplements Added in the Last 7 Days'
+                : 'No Supplements Found'}
             </h3>
             <p className="text-xs text-neutral-400 leading-relaxed">
-              {selectedCategory === 'New Arrivals'
+              {selectedCategory === 'On Sale'
+                ? 'All current supplements are sold at standard store pricing. Check back soon for flash sales or enquire on WhatsApp for custom combo deals.'
+                : selectedCategory === 'New Arrivals'
                 ? 'No supplements were added to the inventory within the past 7 days. Switch to All Products to view our complete stock or enquire on WhatsApp for upcoming shipments.'
                 : 'No products match your current search or category filter. Check the spelling or enquire on WhatsApp for customized availability.'}
             </p>
