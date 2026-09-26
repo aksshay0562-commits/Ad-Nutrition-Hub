@@ -28,6 +28,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isInStock = product.availability === 'In Stock';
   const whatsappUrl = buildWhatsAppEnquiryUrl(product);
 
+  const isNewArrival = Boolean(
+    product.createdAt && 
+    (Date.now() - new Date(product.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000)
+  );
+
   const discountPercent = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null;
@@ -62,7 +67,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span className="px-2.5 py-1 rounded-md bg-neutral-950/80 backdrop-blur-md border border-neutral-700 text-neutral-200 text-[11px] font-bold tracking-wide">
               {product.category}
             </span>
-            {badge && (
+            {badge ? (
               <span
                 className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-neutral-950 text-[10.5px] font-black uppercase tracking-wider shadow-md shadow-black/50"
                 id={`product-card-badge-${product.id}`}
@@ -70,7 +75,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <Flame className="w-3 h-3 fill-neutral-950 stroke-neutral-950" />
                 <span>{badge}</span>
               </span>
-            )}
+            ) : isNewArrival ? (
+              <span
+                className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-emerald-500 text-neutral-950 text-[10px] font-black uppercase tracking-wider shadow-md shadow-black/40"
+                id={`product-new-badge-${product.id}`}
+                title="Added in the last 7 days"
+              >
+                <span>✨ New</span>
+              </span>
+            ) : null}
           </div>
           {discountPercent ? (
             <span className="px-2 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-[11px] font-extrabold uppercase shadow-sm">

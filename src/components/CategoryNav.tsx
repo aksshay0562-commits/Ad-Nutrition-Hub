@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Filter, Sparkles, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Sparkles, Check, Clock } from 'lucide-react';
 import { CATEGORIES } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -15,11 +15,12 @@ interface CategoryMeta {
   shortLabel: string;
   fullCategory: string;
   icon: string;
-  highlightColor?: string;
+  isSpecial?: boolean;
 }
 
 const CATEGORY_METADATA: CategoryMeta[] = [
   { id: 'All', shortLabel: 'All Products', fullCategory: 'All', icon: '🔥' },
+  { id: 'New Arrivals', shortLabel: 'New Arrivals', fullCategory: 'New Arrivals', icon: '✨', isSpecial: true },
   { id: 'Whey Protein', shortLabel: 'Protein', fullCategory: 'Whey Protein', icon: '🥛' },
   { id: 'Mass Gainer', shortLabel: 'Gainers', fullCategory: 'Mass Gainer', icon: '💪' },
   { id: 'Creatine', shortLabel: 'Creatine', fullCategory: 'Creatine', icon: '⚡' },
@@ -112,12 +113,17 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
             Filter by Category
           </span>
-          {selectedCategory !== 'All' && (
+          {selectedCategory === 'New Arrivals' ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10.5px] font-extrabold uppercase">
+              <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>Added in Last 7 Days</span>
+            </span>
+          ) : selectedCategory !== 'All' ? (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-extrabold uppercase">
               <Sparkles className="w-2.5 h-2.5" />
               <span>{selectedCategory}</span>
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Scroll Helper Arrows (Desktop & Tablet) */}
@@ -188,7 +194,11 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
                 onClick={() => handlePillClick(item.fullCategory)}
                 className={`group inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer select-none ${
                   isSelected
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/50 scale-[1.03]'
+                    ? item.isSpecial
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-neutral-950 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 scale-[1.03]'
+                      : 'bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/50 scale-[1.03]'
+                    : item.isSpecial
+                    ? 'bg-gradient-to-r from-emerald-950/60 to-neutral-900 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 shadow-sm'
                     : 'bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 hover:border-neutral-700'
                 }`}
                 id={`filter-pill-${item.id.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
@@ -199,16 +209,31 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
                   {item.icon}
                 </span>
 
-                {/* Primary Short Label (e.g. Protein, Gainers, Vitamins, Accessories) */}
+                {/* Primary Short Label (e.g. New Arrivals, Protein, Gainers, Vitamins, Accessories) */}
                 <span className="tracking-tight">
                   {item.shortLabel}
                 </span>
+
+                {/* Special 7d pill indicator */}
+                {item.isSpecial && (
+                  <span
+                    className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full ${
+                      isSelected
+                        ? 'bg-neutral-950/20 text-neutral-950'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    }`}
+                  >
+                    7d
+                  </span>
+                )}
 
                 {/* Counter Badge */}
                 <span
                   className={`text-[10.5px] px-1.5 py-0.2 rounded-full font-black leading-tight transition-colors ${
                     isSelected
                       ? 'bg-neutral-950 text-amber-300 shadow-sm'
+                      : item.isSpecial
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
                       : 'bg-neutral-800 text-neutral-400 group-hover:text-neutral-200 group-hover:bg-neutral-700'
                   }`}
                 >

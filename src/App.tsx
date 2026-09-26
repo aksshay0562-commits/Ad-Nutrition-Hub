@@ -342,9 +342,21 @@ export default function App() {
     showToast('Catalog reset to initial seed products.');
   };
 
+  // Helper to determine if product was added in the last 7 days
+  const isProductNewArrival = (product: Product): boolean => {
+    if (!product.createdAt) return false;
+    const createdTime = new Date(product.createdAt).getTime();
+    if (isNaN(createdTime)) return false;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    return (Date.now() - createdTime) <= sevenDaysMs;
+  };
+
   // Compute category counts
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: products.length };
+    const counts: Record<string, number> = { 
+      All: products.length,
+      'New Arrivals': products.filter(isProductNewArrival).length
+    };
     CATEGORIES.forEach((cat) => {
       if (cat !== 'All') {
         counts[cat] = products.filter((p) => p.category === cat).length;
@@ -356,8 +368,12 @@ export default function App() {
   // Filtered & Sorted products list
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      // Category filter
-      if (selectedCategory !== 'All' && product.category !== selectedCategory) {
+      // Category filter (including 'New Arrivals' for products added in the last 7 days)
+      if (selectedCategory === 'New Arrivals') {
+        if (!isProductNewArrival(product)) {
+          return false;
+        }
+      } else if (selectedCategory !== 'All' && product.category !== selectedCategory) {
         return false;
       }
 
@@ -627,7 +643,11 @@ export default function App() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400 pt-1 border-t border-neutral-800/60">
             <div>
               Showing <strong className="text-white">{filteredProducts.length}</strong> of {products.length} supplements
-              {selectedCategory !== 'All' && <span> in <strong className="text-amber-400">{selectedCategory}</strong></span>}
+              {selectedCategory === 'New Arrivals' ? (
+                <span> in <strong className="text-emerald-400">✨ New Arrivals (Last 7 Days)</strong></span>
+              ) : selectedCategory !== 'All' ? (
+                <span> in <strong className="text-amber-400">{selectedCategory}</strong></span>
+              ) : null}
               {searchQuery && <span> matching "<span className="text-amber-300">{searchQuery}</span>"</span>}
             </div>
 
@@ -667,9 +687,13 @@ export default function App() {
           /* Empty State */
           <div className="py-16 px-4 text-center rounded-2xl bg-neutral-900/60 border border-neutral-800 max-w-lg mx-auto space-y-4">
             <PackageX className="w-12 h-12 text-neutral-500 mx-auto" />
-            <h3 className="text-lg font-bold text-white">No Supplements Found</h3>
+            <h3 className="text-lg font-bold text-white">
+              {selectedCategory === 'New Arrivals' ? 'No New Supplements Added in the Last 7 Days' : 'No Supplements Found'}
+            </h3>
             <p className="text-xs text-neutral-400 leading-relaxed">
-              No products match your current search or category filter. Check the spelling or enquire on WhatsApp for customized availability.
+              {selectedCategory === 'New Arrivals'
+                ? 'No supplements were added to the inventory within the past 7 days. Switch to All Products to view our complete stock or enquire on WhatsApp for upcoming shipments.'
+                : 'No products match your current search or category filter. Check the spelling or enquire on WhatsApp for customized availability.'}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button
