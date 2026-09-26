@@ -66,6 +66,8 @@ export interface StoreInfo {
     sunday: string;
   };
   googleMapsUrl: string;
+  instagram: string;
+  facebook: string;
 }
 
 export const STORE_INFO: StoreInfo = {
@@ -82,5 +84,7 @@ export const STORE_INFO: StoreInfo = {
     weekdays: "8:00 AM - 9:00 PM",
     sunday: "9:00 AM - 8:00 PM"
   },
-  googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Mandi+Mor+Israna+Panipat+Haryana"
+  googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Mandi+Mor+Israna+Panipat+Haryana",
+  instagram: "https://www.instagram.com/ad_nutrition_hub_israna",
+  facebook: "https://www.facebook.com/adnutritionhubisrana"
 };

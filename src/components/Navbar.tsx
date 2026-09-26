@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode, Palette } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -12,6 +12,7 @@ interface NavbarProps {
   onNavigate: (section: string) => void;
   onOpenAndroidModal?: () => void;
   onOpenScanner?: () => void;
+  onOpenThemeModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,7 +22,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeSection,
   onNavigate,
   onOpenAndroidModal,
-  onOpenScanner
+  onOpenScanner,
+  onOpenThemeModal
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
@@ -147,6 +149,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Camera className="w-4 h-4 text-amber-400" />
                 <span className="hidden md:inline">Scan QR</span>
+              </button>
+            )}
+
+            {/* App Colour Theme Switcher Button */}
+            {onOpenThemeModal && (
+              <button
+                onClick={onOpenThemeModal}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-500/50 text-neutral-300 hover:text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer group"
+                id="navbar-theme-btn"
+                title="Change App Colour Theme"
+                aria-label="Change App Colour Theme"
+              >
+                <Palette className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+                <span className="hidden xl:inline">Colours</span>
               </button>
             )}
 
@@ -279,6 +295,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Camera className="w-4 h-4" />
                 <span>Scan Product QR / Barcode</span>
+              </button>
+            )}
+            {onOpenThemeModal && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenThemeModal();
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-sm font-semibold text-neutral-200 hover:text-white"
+                id="mobile-nav-theme-btn"
+              >
+                <Palette className="w-4 h-4 text-amber-400" />
+                <span>Change App Colour & Theme</span>
               </button>
             )}
             <a

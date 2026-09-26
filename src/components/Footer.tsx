@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, MessageCircle, ShieldCheck, Lock, Unlock, Smartphone } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, ShieldCheck, Lock, Unlock, Smartphone, Palette, Instagram, Facebook } from 'lucide-react';
 import { STORE_INFO, CATEGORIES } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -8,13 +8,15 @@ interface FooterProps {
   onOpenAdmin: () => void;
   isAdmin: boolean;
   onOpenAndroidModal?: () => void;
+  onOpenThemeModal?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onCategorySelect,
   onOpenAdmin,
   isAdmin,
-  onOpenAndroidModal
+  onOpenAndroidModal,
+  onOpenThemeModal
 }) => {
   return (
     <footer id="app-footer" className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
@@ -44,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           {/* Col 2: Categories */}
-          <div className="lg:col-span-3 space-y-3">
+          <div className="lg:col-span-2 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
               Product Categories
             </h4>
@@ -65,7 +67,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           {/* Col 3: Contact & Timings */}
-          <div className="lg:col-span-5 space-y-3">
+          <div className="lg:col-span-3 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
               Store Address & Contacts
             </h4>
@@ -94,9 +96,73 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </div>
 
-              <div className="pt-2 text-[11px] text-neutral-400">
-                <span>Timings: Mon - Sat 8:00 AM - 9:00 PM | Sun 9:00 AM - 8:00 PM</span>
+              <div className="pt-1 text-[11px] text-neutral-400">
+                <span>Mon - Sat 8:00 AM - 9:00 PM | Sun 9:00 AM - 8:00 PM</span>
               </div>
+            </div>
+          </div>
+
+          {/* Col 4: Social Media & Latest Offers */}
+          <div className="lg:col-span-3 space-y-3" id="footer-social-media-section">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                Follow Us & Offers
+              </h4>
+              <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+                Latest Updates
+              </span>
+            </div>
+
+            <p className="text-neutral-400 text-xs leading-relaxed">
+              Follow our official social media channels to catch new brand stock arrivals, unboxing tests, and special discount offers!
+            </p>
+
+            <div className="flex flex-col gap-2 pt-1">
+              {/* Instagram Button */}
+              <a
+                href={STORE_INFO.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-pink-500/50 text-neutral-200 hover:text-white transition-all text-xs font-medium group shadow-sm cursor-pointer"
+                id="footer-instagram-link"
+                title="Follow AD Nutrition Hub on Instagram"
+              >
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow group-hover:scale-110 group-hover:rotate-6 transition-all">
+                  <Instagram className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-white group-hover:text-pink-400 transition-colors flex items-center justify-between">
+                    <span>Instagram</span>
+                    <span className="text-[9.5px] font-semibold text-pink-400 uppercase tracking-tight">Follow</span>
+                  </div>
+                  <div className="text-[10.5px] text-neutral-400 truncate">
+                    @ad_nutrition_hub_israna
+                  </div>
+                </div>
+              </a>
+
+              {/* Facebook Button */}
+              <a
+                href={STORE_INFO.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-blue-500/50 text-neutral-200 hover:text-white transition-all text-xs font-medium group shadow-sm cursor-pointer"
+                id="footer-facebook-link"
+                title="Follow AD Nutrition Hub on Facebook"
+              >
+                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0 shadow group-hover:scale-110 group-hover:rotate-6 transition-all">
+                  <Facebook className="w-4 h-4 fill-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-white group-hover:text-blue-400 transition-colors flex items-center justify-between">
+                    <span>Facebook</span>
+                    <span className="text-[9.5px] font-semibold text-blue-400 uppercase tracking-tight">Like</span>
+                  </div>
+                  <div className="text-[10.5px] text-neutral-400 truncate">
+                    AD Nutrition Hub Israna
+                  </div>
+                </div>
+              </a>
             </div>
           </div>
         </div>
@@ -108,8 +174,45 @@ export const Footer: React.FC<FooterProps> = ({
           <p>© {new Date().getFullYear()} AD Nutrition Hub Israna. All Rights Reserved.</p>
 
           <div className="flex flex-wrap items-center gap-4">
+            {/* Quick Social Media Links */}
+            <div className="flex items-center gap-1.5" id="footer-bottom-social-links">
+              <a
+                href={STORE_INFO.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-pink-400 border border-neutral-800 hover:border-pink-500/40 transition-colors"
+                id="footer-bottom-instagram-btn"
+                title="Follow on Instagram"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-3.5 h-3.5" />
+              </a>
+              <a
+                href={STORE_INFO.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-blue-400 border border-neutral-800 hover:border-blue-500/40 transition-colors"
+                id="footer-bottom-facebook-btn"
+                title="Follow on Facebook"
+                aria-label="Facebook"
+              >
+                <Facebook className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
             {onOpenAndroidModal && (
               <PWAInstallButton onOpenModal={onOpenAndroidModal} variant="footer" />
+            )}
+            {onOpenThemeModal && (
+              <button
+                onClick={onOpenThemeModal}
+                className="inline-flex items-center gap-1.5 text-neutral-400 hover:text-amber-400 font-medium transition-colors cursor-pointer"
+                id="footer-theme-btn"
+                title="Change App Colour Theme"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                <span>App Theme & Colours</span>
+              </button>
             )}
             <span>Mandi Mor, Israna Supplement Shop</span>
             <span>•</span>

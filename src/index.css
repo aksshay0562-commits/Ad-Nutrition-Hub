@@ -4,6 +4,9 @@
   html {
     scroll-behavior: smooth;
   }
+  body {
+    transition: background-color 0.25s ease;
+  }
 }
 
 /* Custom subtle scrollbar */
@@ -20,4 +23,208 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
+}
+
+/* ========================================================================= */
+/* DYNAMIC APP COLOR THEMES (Overrides default amber to selected theme hue)  */
+/* ========================================================================= */
+
+/* 1. Emerald Green */
+html[data-color-theme="emerald"] {
+  --color-amber-50: #ecfdf5;
+  --color-amber-100: #d1fae5;
+  --color-amber-200: #a7f3d0;
+  --color-amber-300: #6ee7b7;
+  --color-amber-400: #34d399;
+  --color-amber-500: #10b981;
+  --color-amber-600: #059669;
+  --color-amber-700: #047857;
+  --color-amber-800: #065f46;
+  --color-amber-900: #064e3b;
+  --color-amber-950: #022c22;
+}
+
+/* 2. Crimson Red */
+html[data-color-theme="crimson"] {
+  --color-amber-50: #fef2f2;
+  --color-amber-100: #fee2e2;
+  --color-amber-200: #fecaca;
+  --color-amber-300: #fca5a5;
+  --color-amber-400: #f87171;
+  --color-amber-500: #ef4444;
+  --color-amber-600: #dc2626;
+  --color-amber-700: #b91c1c;
+  --color-amber-800: #991b1b;
+  --color-amber-900: #7f1d1d;
+  --color-amber-950: #450a0a;
+}
+
+/* 3. Electric Cyan */
+html[data-color-theme="cyan"] {
+  --color-amber-50: #ecfeff;
+  --color-amber-100: #cffafe;
+  --color-amber-200: #a5f3fc;
+  --color-amber-300: #67e8f9;
+  --color-amber-400: #22d3ee;
+  --color-amber-500: #06b6d4;
+  --color-amber-600: #0891b2;
+  --color-amber-700: #0e7490;
+  --color-amber-800: #155e75;
+  --color-amber-900: #164e63;
+  --color-amber-950: #083344;
+}
+
+/* 4. Neon Purple */
+html[data-color-theme="purple"] {
+  --color-amber-50: #faf5ff;
+  --color-amber-100: #f3e8ff;
+  --color-amber-200: #e9d5ff;
+  --color-amber-300: #d8b4fe;
+  --color-amber-400: #c084fc;
+  --color-amber-500: #a855f7;
+  --color-amber-600: #9333ea;
+  --color-amber-700: #7e22ce;
+  --color-amber-800: #6b21a8;
+  --color-amber-900: #581c87;
+  --color-amber-950: #3b0764;
+}
+
+/* 5. Solar Orange */
+html[data-color-theme="orange"] {
+  --color-amber-50: #fff7ed;
+  --color-amber-100: #ffedd5;
+  --color-amber-200: #fed7aa;
+  --color-amber-300: #fdba74;
+  --color-amber-400: #fb923c;
+  --color-amber-500: #f97316;
+  --color-amber-600: #ea580c;
+  --color-amber-700: #c2410c;
+  --color-amber-800: #9a3412;
+  --color-amber-900: #7c2d12;
+  --color-amber-950: #431407;
+}
+
+/* 6. Power Rose */
+html[data-color-theme="rose"] {
+  --color-amber-50: #fff1f2;
+  --color-amber-100: #ffe4e6;
+  --color-amber-200: #fecdd3;
+  --color-amber-300: #fda4af;
+  --color-amber-400: #fb7185;
+  --color-amber-500: #f43f5e;
+  --color-amber-600: #e11d48;
+  --color-amber-700: #be123c;
+  --color-amber-800: #9f1239;
+  --color-amber-900: #881337;
+  --color-amber-950: #4c0519;
+}
+
+/* 7. Volt Lime */
+html[data-color-theme="lime"] {
+  --color-amber-50: #f7fee7;
+  --color-amber-100: #ecfccb;
+  --color-amber-200: #d9f99d;
+  --color-amber-300: #bef264;
+  --color-amber-400: #a3e635;
+  --color-amber-500: #84cc16;
+  --color-amber-600: #65a30d;
+  --color-amber-700: #4d7c0f;
+  --color-amber-800: #3f6212;
+  --color-amber-900: #365314;
+  --color-amber-950: #1a2e05;
+}
+
+/* 8. Cosmic Aurora */
+html[data-color-theme="aurora"] {
+  --color-amber-50: #f0fdfa;
+  --color-amber-100: #ccfbf1;
+  --color-amber-200: #99f6e4;
+  --color-amber-300: #5eead4;
+  --color-amber-400: #2dd4bf;
+  --color-amber-500: #14b8a6;
+  --color-amber-600: #0d9488;
+  --color-amber-700: #0f766e;
+  --color-amber-800: #115e59;
+  --color-amber-900: #134e4a;
+  --color-amber-950: #042f2e;
+}
+
+/* 9. Cyber Hologram Fuchsia */
+html[data-color-theme="fuchsia"] {
+  --color-amber-50: #fdf4ff;
+  --color-amber-100: #fae8ff;
+  --color-amber-200: #f5d0fe;
+  --color-amber-300: #f0abfc;
+  --color-amber-400: #e879f9;
+  --color-amber-500: #d946ef;
+  --color-amber-600: #c026d3;
+  --color-amber-700: #a21caf;
+  --color-amber-800: #86198f;
+  --color-amber-900: #701a75;
+  --color-amber-950: #4a044e;
+}
+
+/* 10. Galaxy Indigo */
+html[data-color-theme="indigo"] {
+  --color-amber-50: #eef2ff;
+  --color-amber-100: #e0e7ff;
+  --color-amber-200: #c7d2fe;
+  --color-amber-300: #a5b4fc;
+  --color-amber-400: #818cf8;
+  --color-amber-500: #6366f1;
+  --color-amber-600: #4f46e5;
+  --color-amber-700: #4338ca;
+  --color-amber-800: #3730a3;
+  --color-amber-900: #312e81;
+  --color-amber-950: #1e1b4b;
+}
+
+/* 11. Molten Magma */
+html[data-color-theme="magma"] {
+  --color-amber-50: #fff5f2;
+  --color-amber-100: #ffe8e0;
+  --color-amber-200: #ffd0c2;
+  --color-amber-300: #ffa58f;
+  --color-amber-400: #ff6e4a;
+  --color-amber-500: #ff3b00;
+  --color-amber-600: #e62e00;
+  --color-amber-700: #bf2100;
+  --color-amber-800: #991900;
+  --color-amber-900: #7a1500;
+  --color-amber-950: #420800;
+}
+
+/* 12. 24K Liquid Gold */
+html[data-color-theme="gold"] {
+  --color-amber-50: #fefce8;
+  --color-amber-100: #fef9c3;
+  --color-amber-200: #fef08a;
+  --color-amber-300: #fde047;
+  --color-amber-400: #facc15;
+  --color-amber-500: #eab308;
+  --color-amber-600: #ca8a04;
+  --color-amber-700: #a16207;
+  --color-amber-800: #854d0e;
+  --color-amber-900: #713f12;
+  --color-amber-950: #3f2206;
+}
+
+/* ========================================================================= */
+/* BACKGROUND THEMES                                                         */
+/* ========================================================================= */
+
+/* OLED Pure Black */
+html[data-bg-theme="oled"] {
+  --color-neutral-950: #000000;
+  --color-neutral-900: #0a0a0c;
+  --color-neutral-800: #16161a;
+  background-color: #000000;
+}
+
+/* Slate Charcoal */
+html[data-bg-theme="slate"] {
+  --color-neutral-950: #050811;
+  --color-neutral-900: #0d1527;
+  --color-neutral-800: #1e293b;
+  background-color: #050811;
 }

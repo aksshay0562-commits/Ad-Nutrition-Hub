@@ -42,6 +42,16 @@ import { AndroidInstallModal } from './components/AndroidInstallModal';
 import { ProductScannerModal } from './components/ProductScannerModal';
 import { ProductQRModal } from './components/ProductQRModal';
 import { CalculatorStackSection } from './components/CalculatorStackSection';
+import { ThemeModal } from './components/ThemeModal';
+import { 
+  initAppThemes, 
+  applyColorTheme, 
+  applyCustomUniqueColor,
+  applyBgTheme, 
+  getSavedColorTheme, 
+  getSavedBgTheme,
+  getSavedCustomHex
+} from './utils/theme';
 import { Camera, QrCode } from 'lucide-react';
 import { triggerHaptic } from './utils/haptics';
 
@@ -58,9 +68,47 @@ export default function App() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
+
+  // App Colour & Background Theme State
+  const [currentColorTheme, setCurrentColorTheme] = useState<string>(getSavedColorTheme);
+  const [currentBgTheme, setCurrentBgTheme] = useState<string>(getSavedBgTheme);
+  const [customHex, setCustomHex] = useState<string>(getSavedCustomHex);
+
+  // Initialize and sync themes on mount
+  useEffect(() => {
+    const { color, bg, customHex: savedHex } = initAppThemes();
+    setCurrentColorTheme(color);
+    setCurrentBgTheme(bg);
+    setCustomHex(savedHex);
+  }, []);
+
+  const handleSelectColorTheme = (colorId: string) => {
+    setCurrentColorTheme(colorId);
+    applyColorTheme(colorId);
+  };
+
+  const handleSelectCustomHex = (hex: string) => {
+    setCustomHex(hex);
+    setCurrentColorTheme('custom');
+    applyCustomUniqueColor(hex);
+  };
+
+  const handleSelectBgTheme = (bgId: string) => {
+    setCurrentBgTheme(bgId);
+    applyBgTheme(bgId);
+  };
+
+  const handleResetTheme = () => {
+    setCurrentColorTheme('amber');
+    setCurrentBgTheme('midnight');
+    setCustomHex('#00F0FF');
+    applyColorTheme('amber');
+    applyBgTheme('midnight');
+  };
 
   // Track scan inactivity to animate the 'Scan Product' button with a subtle pulse/glow effect
   const [shouldPulseScanBtn, setShouldPulseScanBtn] = useState(false);
@@ -382,6 +430,7 @@ export default function App() {
         onNavigate={handleNavigate}
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         onOpenScanner={handleOpenScanner}
+        onOpenThemeModal={() => setIsThemeModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -434,6 +483,7 @@ export default function App() {
                   }}
                   onDelete={(p) => handleDeleteProduct(p.id)}
                   onToggleStock={handleToggleStock}
+                  badge="Trending"
                 />
               ))}
             </div>
@@ -780,6 +830,7 @@ export default function App() {
         onOpenAdmin={() => setIsAdminModalOpen(true)}
         isAdmin={isAdmin}
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
+        onOpenThemeModal={() => setIsThemeModalOpen(true)}
       />
 
       {/* Android APK & Install Modal */}
@@ -867,6 +918,19 @@ export default function App() {
         product={qrModalProduct}
         isOpen={Boolean(qrModalProduct)}
         onClose={() => setQrModalProduct(null)}
+      />
+
+      {/* App Colour & Background Theme Customizer Modal */}
+      <ThemeModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentColor={currentColorTheme}
+        currentBg={currentBgTheme}
+        customHex={customHex}
+        onSelectColor={handleSelectColorTheme}
+        onSelectCustomHex={handleSelectCustomHex}
+        onSelectBg={handleSelectBgTheme}
+        onReset={handleResetTheme}
       />
     </div>
   );
