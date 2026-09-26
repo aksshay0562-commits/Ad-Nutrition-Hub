@@ -559,17 +559,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Categories Pills */}
-        <div className="mb-6" id="categories">
-          <CategoryNav
-            selectedCategory={selectedCategory}
-            onSelectCategory={(cat) => setSelectedCategory(cat)}
-            categoryCounts={categoryCounts}
-          />
-        </div>
-
         {/* Search & Filter Bar */}
-        <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800 mb-8 space-y-3">
+        <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800 mb-6 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Search Input with Camera Scan Icon */}
             <div className="md:col-span-6 relative">
@@ -654,6 +645,16 @@ export default function App() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Horizontal Scrollable Category Filter Pills Strip (Directly Above Product Grid) */}
+        <div className="mb-6" id="categories">
+          <CategoryNav
+            selectedCategory={selectedCategory}
+            onSelectCategory={(cat) => setSelectedCategory(cat)}
+            categoryCounts={categoryCounts}
+            totalProductsCount={products.length}
+          />
         </div>
 
         {/* Loading State */}
