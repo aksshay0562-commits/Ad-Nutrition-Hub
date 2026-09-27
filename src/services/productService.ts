@@ -64,6 +64,16 @@ export async function seedInitialProductsIfEmpty(): Promise<Product[]> {
   }
 }
 
+export function deduplicateProducts(list: Product[]): Product[] {
+  const map = new Map<string, Product>();
+  for (const item of list) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
 // Fetch products with Firestore priority and fallback to cache / local
 export async function fetchProducts(): Promise<Product[]> {
   // 1. Try Firestore
@@ -75,11 +85,13 @@ export async function fetchProducts(): Promise<Product[]> {
       snap.forEach((docSnap) => {
         list.push({ ...(docSnap.data() as Product), id: docSnap.id });
       });
-      localStorage.setItem(CACHE_KEY, JSON.stringify(list));
-      return list;
+      const deduped = deduplicateProducts(list);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+      return deduped;
     } else {
       // Empty in Firestore, seed defaults
-      return await seedInitialProductsIfEmpty();
+      const seeded = await seedInitialProductsIfEmpty();
+      return deduplicateProducts(seeded);
     }
   } catch (err: any) {
     if (err?.code === 'unavailable') {
@@ -95,8 +107,9 @@ export async function fetchProducts(): Promise<Product[]> {
     if (res.ok) {
       const data: Product[] = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        return data;
+        const deduped = deduplicateProducts(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+        return deduped;
       }
     }
   } catch (err) {
@@ -109,14 +122,14 @@ export async function fetchProducts(): Promise<Product[]> {
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return deduplicateProducts(parsed);
       }
     }
   } catch {
     // Ignore cache parse error
   }
 
-  return INITIAL_PRODUCTS;
+  return deduplicateProducts(INITIAL_PRODUCTS);
 }
 
 // Real-time Firestore snapshot listener with compliant error callback
@@ -132,9 +145,10 @@ export function subscribeToProducts(
       snapshot.forEach((docSnap) => {
         prods.push({ ...(docSnap.data() as Product), id: docSnap.id });
       });
-      if (prods.length > 0) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(prods));
-        onUpdate(prods);
+      const deduped = deduplicateProducts(prods);
+      if (deduped.length > 0) {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+        onUpdate(deduped);
       }
     },
     (error) => {
@@ -158,9 +172,9 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
   let finalImageUrl = productData.imageUrl;
 
   // Ensure image is compressed to stay well under Firestore's 1MB limit
-  if (finalImageUrl && finalImageUrl.startsWith('data:image') && finalImageUrl.length > 250000) {
+  if (finalImageUrl && finalImageUrl.startsWith('data:image')) {
     try {
-      finalImageUrl = await compressImage(finalImageUrl, 900, 900, 0.8);
+      finalImageUrl = await compressImage(finalImageUrl, 800, 800, 0.75);
     } catch (e) {
       console.warn('Could not compress image in addProduct:', e);
     }
@@ -173,12 +187,22 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
     createdAt: new Date().toISOString()
   });
 
+  // Emergency safety check: if serialized payload still exceeds 700KB, recompress aggressively
+  if (JSON.stringify(payload).length > 700000 && payload.imageUrl && payload.imageUrl.startsWith('data:image')) {
+    try {
+      payload.imageUrl = await compressImage(payload.imageUrl, 500, 500, 0.55);
+    } catch {}
+  }
+
   // Try writing to Firestore
   try {
     const docRef = doc(db, PRODUCTS_COLLECTION, newId);
     await setDoc(docRef, payload);
-  } catch (err) {
+  } catch (err: any) {
     console.warn('Firestore addDoc error, attempting API backup:', err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isDocSizeError = errMsg.includes('exceeds the maximum allowed size') || errMsg.includes('cannot be written');
+
     try {
       await fetch('/api/products', {
         method: 'POST',
@@ -188,14 +212,29 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
     } catch (apiErr) {
       console.warn('API backup also failed:', apiErr);
     }
-    // Re-throw with compliant error handler if Firestore permission issue
-    handleFirestoreError(err, OperationType.CREATE, `${PRODUCTS_COLLECTION}/${newId}`);
+
+    if (isDocSizeError) {
+      // If Firestore failed due to document size, perform emergency low-res compression and retry once
+      if (payload.imageUrl && payload.imageUrl.startsWith('data:image')) {
+        try {
+          payload.imageUrl = await compressImage(payload.imageUrl, 400, 400, 0.5);
+          const docRef = doc(db, PRODUCTS_COLLECTION, newId);
+          await setDoc(docRef, payload);
+          console.log('Product written to Firestore successfully after emergency compression.');
+        } catch (retryErr) {
+          console.warn('Firestore retry after compression still failed; proceeding with API backup:', retryErr);
+        }
+      }
+    } else {
+      // Re-throw with compliant error handler if Firestore permission issue
+      handleFirestoreError(err, OperationType.CREATE, `${PRODUCTS_COLLECTION}/${newId}`);
+    }
   }
 
   // Update local cache
   try {
     const cached = await fetchProducts();
-    const updatedList = [payload, ...cached.filter(p => p.id !== newId)];
+    const updatedList = deduplicateProducts([payload, ...cached.filter(p => p.id !== newId)]);
     localStorage.setItem(CACHE_KEY, JSON.stringify(updatedList));
   } catch {
     // Ignore cache write error
@@ -220,15 +259,25 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     : ({ id, ...updatedPayload } as Product);
 
   // If image is a large base64 string, compress it to keep document well under Firestore's 1MB limit
-  if (fullUpdated.imageUrl && fullUpdated.imageUrl.startsWith('data:image') && fullUpdated.imageUrl.length > 250000) {
+  if (fullUpdated.imageUrl && fullUpdated.imageUrl.startsWith('data:image')) {
     try {
-      fullUpdated.imageUrl = await compressImage(fullUpdated.imageUrl, 900, 900, 0.8);
+      fullUpdated.imageUrl = await compressImage(fullUpdated.imageUrl, 800, 800, 0.75);
       if (updatedPayload.imageUrl) {
         updatedPayload.imageUrl = fullUpdated.imageUrl;
       }
     } catch (compErr) {
       console.warn('Could not compress large image before Firestore update:', compErr);
     }
+  }
+
+  // Emergency safety check: if serialized payload exceeds 700KB, recompress aggressively
+  if (JSON.stringify(fullUpdated).length > 700000 && fullUpdated.imageUrl && fullUpdated.imageUrl.startsWith('data:image')) {
+    try {
+      fullUpdated.imageUrl = await compressImage(fullUpdated.imageUrl, 500, 500, 0.55);
+      if (updatedPayload.imageUrl) {
+        updatedPayload.imageUrl = fullUpdated.imageUrl;
+      }
+    } catch {}
   }
 
   // 1. Try Firestore
@@ -238,8 +287,11 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     const docRef = doc(db, PRODUCTS_COLLECTION, id);
     await setDoc(docRef, sanitizedDoc, { merge: true });
     firestoreSuccess = true;
-  } catch (err) {
+  } catch (err: any) {
     console.warn('Firestore updateDoc/setDoc error:', err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isDocSizeError = errMsg.includes('exceeds the maximum allowed size') || errMsg.includes('cannot be written');
+
     // API fallback
     try {
       await fetch(`/api/products/${id}`, {
@@ -251,10 +303,18 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
       // Ignored
     }
     
-    // Check if error is specifically document size exceeded
-    const errMsg = err instanceof Error ? err.message : String(err);
-    if (errMsg.includes('exceeds the maximum allowed size') || errMsg.includes('cannot be written')) {
-      console.warn('Document size exceeded in Firestore; fallback applied.');
+    if (isDocSizeError) {
+      if (sanitizedDoc.imageUrl && sanitizedDoc.imageUrl.startsWith('data:image')) {
+        try {
+          sanitizedDoc.imageUrl = await compressImage(sanitizedDoc.imageUrl, 400, 400, 0.5);
+          const docRef = doc(db, PRODUCTS_COLLECTION, id);
+          await setDoc(docRef, sanitizedDoc, { merge: true });
+          firestoreSuccess = true;
+          console.log('Product updated in Firestore after emergency compression.');
+        } catch (retryErr) {
+          console.warn('Firestore update retry after compression failed; proceeding with API backup:', retryErr);
+        }
+      }
     } else {
       handleFirestoreError(err, OperationType.UPDATE, `${PRODUCTS_COLLECTION}/${id}`);
     }

@@ -197,16 +197,17 @@ export default function App() {
     fetchProducts()
       .then(async (data) => {
         if (isMounted) {
-          setProducts(data);
+          const uniqueData = Array.from(new Map(data.map(p => [p.id, p])).values());
+          setProducts(uniqueData);
           setIsLoading(false);
 
           // Check and optimize any legacy bloated image in cache
-          const hasOversized = data.some(
+          const hasOversized = uniqueData.some(
             (p) => p.imageUrl && p.imageUrl.startsWith('data:image') && p.imageUrl.length > 250000
           );
           if (hasOversized) {
             const cleaned = await Promise.all(
-              data.map(async (p) => {
+              uniqueData.map(async (p) => {
                 if (p.imageUrl && p.imageUrl.startsWith('data:image') && p.imageUrl.length > 250000) {
                   try {
                     const compressed = await compressImage(p.imageUrl, 900, 900, 0.8);
@@ -233,7 +234,8 @@ export default function App() {
     // Real-time listener for multi-device sync
     const unsubscribe = subscribeToProducts((updated) => {
       if (isMounted && updated && updated.length > 0) {
-        setProducts(updated);
+        const uniqueUpdated = Array.from(new Map(updated.map(p => [p.id, p])).values());
+        setProducts(uniqueUpdated);
         setIsLoading(false);
       }
     });
@@ -373,7 +375,14 @@ export default function App() {
 
   // Filtered & Sorted products list
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    const seen = new Set<string>();
+    const uniqueList = products.filter(p => {
+      if (!p || !p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
+    return uniqueList.filter((product) => {
       // Category filter (including 'On Sale' and 'New Arrivals')
       if (selectedCategory === 'On Sale') {
         if (!isProductOnSale(product)) {
@@ -517,10 +526,11 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.map((product) => (
+              {featuredProducts.map((product, idx) => (
                 <ProductCard
-                  key={`featured-${product.id}`}
+                  key={`featured-${product.id}-${idx}`}
                   product={product}
+                  index={idx}
                   onViewDetails={(p) => setSelectedProduct(p)}
                   onShowQR={(p) => setQrModalProduct(p)}
                   isAdmin={isAdmin}
@@ -762,10 +772,11 @@ export default function App() {
         ) : (
           /* Product Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, idx) => (
               <ProductCard
-                key={product.id}
+                key={`catalog-${product.id}-${idx}`}
                 product={product}
+                index={idx}
                 onViewDetails={(p) => setSelectedProduct(p)}
                 onShowQR={(p) => setQrModalProduct(p)}
                 isAdmin={isAdmin}

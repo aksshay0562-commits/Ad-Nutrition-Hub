@@ -117,21 +117,32 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
   const [customStackProductIds, setCustomStackProductIds] = useState<string[]>([]);
   const [stackMode, setStackMode] = useState<'prebuilt' | 'custom'>('prebuilt');
 
-  // Find products helper
-  const findProduct = (keyword: string, fallbackCategory?: string): Product | undefined => {
-    return products.find(p => p.name.toLowerCase().includes(keyword.toLowerCase())) ||
-           products.find(p => p.category.toLowerCase().includes((fallbackCategory || keyword).toLowerCase())) ||
-           products[0];
+  // Find products helper with deduplication safeguard
+  const findProduct = (keyword: string, fallbackCategory?: string, excludeIds: string[] = []): Product | undefined => {
+    return products.find(p => !excludeIds.includes(p.id) && p.name.toLowerCase().includes(keyword.toLowerCase())) ||
+           products.find(p => !excludeIds.includes(p.id) && p.category.toLowerCase().includes((fallbackCategory || keyword).toLowerCase())) ||
+           products.find(p => !excludeIds.includes(p.id));
+  };
+
+  // Helper to deduplicate array of products by ID
+  const dedupeProducts = (items: (Product | undefined)[]): Product[] => {
+    const valid = items.filter(Boolean) as Product[];
+    const seen = new Set<string>();
+    return valid.filter(p => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
   };
 
   // Pre-configured stacks based on store catalog
   const prebuiltStacks = useMemo(() => {
     // 1. Lean Muscle Stack
     const whey = findProduct('Whey', 'Whey Protein');
-    const creatine = findProduct('Creatine', 'Creatine');
-    const preworkout = findProduct('Pre-Workout', 'Pre-Workout');
+    const creatine = findProduct('Creatine', 'Creatine', whey ? [whey.id] : []);
+    const preworkout = findProduct('Pre-Workout', 'Pre-Workout', [whey?.id, creatine?.id].filter(Boolean) as string[]);
     const gainer = findProduct('Gainer', 'Mass Gainer');
-    const fishoil = findProduct('Fish Oil', 'Vitamins & Minerals');
+    const fishoil = findProduct('Fish Oil', 'Vitamins & Minerals', [gainer?.id].filter(Boolean) as string[]);
     const growth = findProduct('Growth', 'Maximum Strength');
     const proActive = findProduct('Pro Active', 'Dietary Supplements');
 
@@ -143,7 +154,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
         desc: 'The gold standard trio for pure lean muscle synthesis, rapid post-workout recovery, and high vascularity.',
         goalKey: 'lean_muscle',
         badgeColor: 'border-amber-500/40 text-amber-300 bg-amber-500/10',
-        products: [whey, creatine, preworkout].filter(Boolean) as Product[],
+        products: dedupeProducts([whey, creatine, preworkout]),
         dosageTip: 'Whey: 1 scoop post-workout • Creatine: 3–5g daily • Pre-Workout: 1 scoop 20m before training',
         discountPercent: 8,
       },
@@ -154,7 +165,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
         desc: 'Dense high-calorie carbohydrates, ultra-pure protein, and cell-volumizing creatine for fast weight and size increase.',
         goalKey: 'bulking',
         badgeColor: 'border-yellow-500/40 text-yellow-300 bg-yellow-500/10',
-        products: [gainer, creatine, fishoil].filter(Boolean) as Product[],
+        products: dedupeProducts([gainer, creatine, fishoil]),
         dosageTip: 'Mass Gainer: 1 serving between meals • Creatine: 5g daily • Fish Oil: 1 softgel with breakfast',
         discountPercent: 10,
       },
@@ -165,7 +176,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
         desc: 'Retain maximum muscle while shredding body fat with high bioavailability protein, essential omega-3s, and metabolic vitality.',
         goalKey: 'cutting',
         badgeColor: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10',
-        products: [whey, proActive, fishoil].filter(Boolean) as Product[],
+        products: dedupeProducts([whey, proActive, fishoil]),
         dosageTip: 'Whey: 1–2 scoops daily • Pro Active: 1 capsule with lunch • Fish Oil: 1 softgel morning & night',
         discountPercent: 7,
       },
@@ -176,7 +187,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
         desc: 'Formulated for explosive gym lifting, heavy squats and bench PRs, and deep muscle recovery while sleeping.',
         goalKey: 'strength',
         badgeColor: 'border-red-500/40 text-red-300 bg-red-500/10',
-        products: [preworkout, creatine, growth].filter(Boolean) as Product[],
+        products: dedupeProducts([preworkout, creatine, growth]),
         dosageTip: 'Pre-Workout: 1 scoop pre-gym • Creatine: 5g with warm water • Growth Support: 2 capsules before bed',
         discountPercent: 9,
       },
@@ -187,7 +198,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
         desc: 'Crucial joint lubrication, heart health, stamina, and daily foundational protein for all fitness enthusiasts.',
         goalKey: 'health',
         badgeColor: 'border-blue-500/40 text-blue-300 bg-blue-500/10',
-        products: [whey, fishoil].filter(Boolean) as Product[],
+        products: dedupeProducts([whey, fishoil]),
         dosageTip: 'Whey: 1 scoop daily • Fish Oil: 1 softgel after main meal',
         discountPercent: 5,
       },
@@ -759,12 +770,12 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {products.map((p) => {
+                  {products.map((p, idx) => {
                     const isSelected = customStackProductIds.includes(p.id);
 
                     return (
                       <div
-                        key={p.id}
+                        key={`custom-product-${p.id}-${idx}`}
                         onClick={() => toggleCustomProduct(p.id)}
                         className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
@@ -867,7 +878,7 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {currentStackData.products.map((p, idx) => (
                       <div
-                        key={p.id}
+                        key={`stack-item-${p.id}-${idx}`}
                         className="p-3.5 rounded-2xl bg-neutral-950 border border-neutral-800 flex items-center gap-3 relative group"
                       >
                         <span className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center text-xs font-bold shrink-0">

@@ -232,21 +232,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert('Image file is too large! Please choose an image under 15MB.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Image file is too large! Please choose an image under 25MB.');
       return;
     }
 
     try {
       // Compress and resize for crisp display under 150KB
-      const compressed = await compressImage(file, 900, 900, 0.82);
+      const compressed = await compressImage(file, 800, 800, 0.75);
       setImageUrl(compressed);
     } catch (err) {
       console.warn('Image compression fallback:', err);
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         if (typeof reader.result === 'string') {
-          setImageUrl(reader.result);
+          try {
+            const comp = await compressImage(reader.result, 800, 800, 0.75);
+            setImageUrl(comp);
+          } catch {
+            setImageUrl(reader.result);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -266,7 +271,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
 
     const finalCategory = category === 'Other' ? (customCategory.trim() || 'Supplements') : category;
-    const finalImageUrl = imageUrl.trim() || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
+    let finalImageUrl = imageUrl.trim() || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
+
+    if (finalImageUrl.startsWith('data:image')) {
+      try {
+        finalImageUrl = await compressImage(finalImageUrl, 800, 800, 0.75);
+      } catch (compErr) {
+        console.warn('AdminPanel pre-submit image compression failed:', compErr);
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -1181,7 +1194,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                           return (
                             <div
-                              key={stat.productId}
+                              key={`analytics-stat-${stat.productId}-${index}`}
                               id={`admin-analytics-item-${stat.productId}`}
                               className="group p-3 sm:p-3.5 rounded-xl bg-neutral-900/80 hover:bg-neutral-850 border border-neutral-800/90 hover:border-amber-500/40 transition-all space-y-2.5"
                             >
@@ -1349,13 +1362,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  {products.map((p) => {
+                  {products.map((p, index) => {
                     const isInStock = p.availability === 'In Stock';
                     const prodScanCount = scanAnalytics.productStats[p.id]?.scanCount || 0;
 
                     return (
                       <div
-                        key={p.id}
+                        key={`admin-product-row-${p.id}-${index}`}
                         className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 hover:border-neutral-700 gap-3"
                         id={`admin-product-row-${p.id}`}
                       >

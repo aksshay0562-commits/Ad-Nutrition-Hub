@@ -13,6 +13,8 @@ interface ProductCardProps {
   onDelete?: (product: Product) => void;
   onToggleStock?: (product: Product) => void;
   badge?: 'Trending' | 'Shop Now' | string;
+  index?: number;
+  animateEntrance?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -23,7 +25,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onEdit,
   onDelete,
   onToggleStock,
-  badge
+  badge,
+  index = 0,
+  animateEntrance = true
 }) => {
   const isInStock = product.availability === 'In Stock';
   const whatsappUrl = buildWhatsAppEnquiryUrl(product);
@@ -38,7 +42,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     : null;
 
   return (
-    <div 
+    <motion.div 
+      initial={animateEntrance ? { opacity: 0, y: 18 } : false}
+      animate={animateEntrance ? { opacity: 1, y: 0 } : false}
+      transition={{
+        duration: 0.35,
+        delay: Math.min((index % 8) * 0.04, 0.28),
+        ease: [0.25, 0.1, 0.25, 1]
+      }}
       className="group relative flex flex-col rounded-2xl bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-300 overflow-hidden"
       id={`product-card-${product.id}`}
     >
@@ -282,6 +293,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
