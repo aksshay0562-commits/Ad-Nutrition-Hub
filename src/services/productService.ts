@@ -1,4 +1,4 @@
-import { Product } from '../types';
+import { Product, STORE_INFO } from '../types';
 import { INITIAL_PRODUCTS } from '../data/defaultProducts';
 import { 
   collection, 
@@ -457,17 +457,20 @@ export function buildWhatsAppPriceAlertUrl(
   product: Product, 
   targetPrice: number, 
   customerPhone?: string, 
-  customerName?: string
+  customerName?: string,
+  storePhone: string = STORE_INFO.rawPhone1
 ): string {
-  const storePhone = '917015959517';
   const text = `Namaste AD Nutrition Hub Israna! 🙏\n\n🔔 *Price Drop Alert Request*\n🛒 Product: ${product.name}\n💰 Current Store Price: ₹${product.price.toLocaleString('en-IN')}\n🎯 My Desired Price: ₹${targetPrice.toLocaleString('en-IN')}\n${customerName ? `👤 Name: ${customerName}\n` : ''}${customerPhone ? `📱 WhatsApp: ${customerPhone}\n` : ''}\nPlease notify me on this WhatsApp number whenever this product's price drops or if a special festival / bulk offer becomes available at your Mandi Mor, Israna shop!`;
 
   return `https://wa.me/${storePhone}?text=${encodeURIComponent(text)}`;
 }
 
 // Utility for WhatsApp enquiry URL
-export function buildWhatsAppEnquiryUrl(product?: Product, customMessage?: string): string {
-  const phone = '917015959517';
+export function buildWhatsAppEnquiryUrl(
+  product?: Product, 
+  customMessage?: string,
+  phoneNumber: string = STORE_INFO.rawPhone1
+): string {
   let text = '';
 
   if (product) {
@@ -478,7 +481,7 @@ export function buildWhatsAppEnquiryUrl(product?: Product, customMessage?: strin
     text = `Namaste AD Nutrition Hub Israna! 🙏\nI want to enquire about fitness supplements and products available at your Mandi Mor, Israna store.`;
   }
 
-  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
 }
 
 export function formatPrice(num: number): string {

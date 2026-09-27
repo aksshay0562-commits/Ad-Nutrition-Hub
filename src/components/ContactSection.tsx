@@ -55,41 +55,91 @@ export const ContactSection: React.FC = () => {
                 </div>
               </div>
 
-              {/* Contact Card: Phone & WhatsApp */}
-              <div className="p-5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3">
+              {/* Contact Card: Phone & WhatsApp (Dual Numbers) */}
+              <div className="p-5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-4">
                 <div className="flex items-start gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
                     <Phone className="w-5 h-5" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Phone & WhatsApp</h3>
-                    <p className="text-base text-white font-extrabold mt-1">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Phone & WhatsApp Contacts</h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      Direct consultation, authentic stock enquiries & instant WhatsApp orders.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* WhatsApp Line 1 */}
+                  <div className="p-3.5 rounded-xl bg-neutral-950/80 border border-neutral-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase text-amber-400">Line 1 (Primary)</span>
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                    </div>
+                    <p className="text-sm sm:text-base text-white font-black tracking-tight">
                       {STORE_INFO.phone}
                     </p>
-                    <p className="text-xs text-neutral-400 mt-0.5">
-                      Direct consultation, stock enquiries & fast WhatsApp orders.
-                    </p>
-                    <div className="flex flex-wrap gap-2 pt-3">
+                    <div className="flex items-center gap-1.5 pt-1">
                       <motion.a
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.94 }}
                         transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                        href={`https://wa.me/917015959517?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                        href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
-                        id="contact-whatsapp-btn"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                        id="contact-whatsapp-line1-btn"
                       >
-                        <MessageCircle className="w-4 h-4 fill-white" />
-                        <span>Chat on WhatsApp</span>
+                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                        <span>WhatsApp</span>
                       </motion.a>
                       <a
                         href={`tel:${STORE_INFO.phone}`}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold border border-neutral-700 transition-colors"
-                        id="contact-call-btn"
+                        className="inline-flex items-center justify-center p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold border border-neutral-700 transition-colors"
+                        title="Call Line 1"
+                        id="contact-call-line1-btn"
                       >
                         <Phone className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Call Store</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp Line 2 */}
+                  <div className="p-3.5 rounded-xl bg-neutral-950/80 border border-neutral-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase text-emerald-400">Line 2 (WhatsApp)</span>
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                    </div>
+                    <p className="text-sm sm:text-base text-white font-black tracking-tight">
+                      {STORE_INFO.phone2}
+                    </p>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <motion.a
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.94 }}
+                        transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                        href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                        id="contact-whatsapp-line2-btn"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                        <span>WhatsApp</span>
+                      </motion.a>
+                      <a
+                        href={`tel:${STORE_INFO.phone2}`}
+                        className="inline-flex items-center justify-center p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold border border-neutral-700 transition-colors"
+                        title="Call Line 2"
+                        id="contact-call-line2-btn"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-emerald-400" />
                       </a>
                     </div>
                   </div>

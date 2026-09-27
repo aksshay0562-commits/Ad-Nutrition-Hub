@@ -79,21 +79,40 @@ export const Footer: React.FC<FooterProps> = ({
 
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href={`tel:${STORE_INFO.phone}`} className="hover:text-white font-semibold">
-                  {STORE_INFO.phone}
-                </a>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <a href={`tel:${STORE_INFO.phone}`} className="hover:text-white font-semibold">
+                    {STORE_INFO.phone}
+                  </a>
+                  <span className="text-neutral-600">•</span>
+                  <a href={`tel:${STORE_INFO.phone2}`} className="hover:text-white font-semibold">
+                    {STORE_INFO.phone2}
+                  </a>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                <a 
-                  href={`https://wa.me/917015959517?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna!')}`}
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-emerald-400 hover:underline font-semibold"
-                >
-                  WhatsApp: +91 70159 59517
-                </a>
+              <div className="space-y-1.5 pt-0.5">
+                <div className="flex items-center gap-2.5">
+                  <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <a 
+                    href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna!')}`}
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-emerald-400 hover:underline font-semibold text-xs"
+                  >
+                    WhatsApp 1: {STORE_INFO.phone}
+                  </a>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <a 
+                    href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna!')}`}
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-emerald-400 hover:underline font-semibold text-xs"
+                  >
+                    WhatsApp 2: {STORE_INFO.phone2}
+                  </a>
+                </div>
               </div>
 
               <div className="pt-1 text-[11px] text-neutral-400">

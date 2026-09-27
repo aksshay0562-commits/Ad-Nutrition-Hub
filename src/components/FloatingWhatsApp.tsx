@@ -17,6 +17,7 @@ export const FloatingWhatsApp: React.FC = () => {
   const [isPressing, setIsPressing] = useState(false);
   const [pressProgress, setPressProgress] = useState(0);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showLineMenu, setShowLineMenu] = useState(false);
   const [isQrZoomed, setIsQrZoomed] = useState(false);
   const [isQrHovered, setIsQrHovered] = useState(false);
   const [verticalOffset, setVerticalOffset] = useState<number>(0);
@@ -94,7 +95,8 @@ ${storeUrl}
 ${STORE_INFO.addressDetail}
 
 📞 Phone / WhatsApp Enquiry:
-${STORE_INFO.phone}
+Line 1: ${STORE_INFO.phone}
+Line 2: ${STORE_INFO.phone2}
 
 Visit the online catalog or walk in to check batch verification and current in-store offers!`;
 
@@ -432,7 +434,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
               <div className="text-[11px] leading-snug">
                 <span>Enquire on WhatsApp! </span>
                 <span className="text-neutral-400 block sm:inline text-[10px]">
-                  (💡 <strong>Hold</strong> to copy link • <strong>QR button</strong> to scan)
+                  (Line 1: 70159 59517 • Line 2: 80532 26224)
                 </span>
               </div>
               <button
@@ -448,8 +450,98 @@ Visit the online catalog or walk in to check batch verification and current in-s
           )}
         </AnimatePresence>
 
+        {/* Dual WhatsApp Line Selector Popover */}
+        <AnimatePresence>
+          {showLineMenu && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 8, transition: { duration: 0.15 } }}
+              className="bg-neutral-900 border border-neutral-700/80 rounded-2xl shadow-2xl p-3 w-72 space-y-2 origin-bottom-right"
+              id="whatsapp-dual-lines-popover"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Choose WhatsApp Line</span>
+                </span>
+                <button
+                  onClick={() => setShowLineMenu(false)}
+                  className="text-neutral-400 hover:text-white p-0.5 rounded-lg hover:bg-neutral-800 transition-colors"
+                  aria-label="Close line selector"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Line 1 */}
+              <a
+                href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowLineMenu(false)}
+                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 transition-all group"
+                id="floating-wa-line1-link"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                  1
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
+                      {STORE_INFO.phone}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-400">Primary</span>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 truncate">Orders & Supplement Enquiries</p>
+                </div>
+              </a>
+
+              {/* Line 2 */}
+              <a
+                href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowLineMenu(false)}
+                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 transition-all group"
+                id="floating-wa-line2-link"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                  2
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
+                      {STORE_INFO.phone2}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-400">Line 2</span>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 truncate">Store WhatsApp & Instant Help</p>
+                </div>
+              </a>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main WhatsApp & Quick Action Buttons */}
         <div className="relative flex items-center gap-2">
+          {/* Quick Dual-Line WhatsApp Picker Toggle */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.90 }}
+            onClick={() => setShowLineMenu(!showLineMenu)}
+            className={`p-2.5 rounded-full border shadow-xl flex items-center justify-center transition-colors cursor-pointer ${
+              showLineMenu 
+                ? 'bg-emerald-600 text-white border-emerald-400' 
+                : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-700 text-emerald-400 hover:text-emerald-300'
+            }`}
+            title="Switch WhatsApp Line (Line 1: 70159 59517 | Line 2: 80532 26224)"
+            id="choose-whatsapp-line-btn"
+            aria-label="Choose WhatsApp Line"
+          >
+            <span className="text-[11px] font-black tracking-tight">2📲</span>
+          </motion.button>
+
           {/* Share via QR Code Button */}
           <motion.button
             whileHover={{ scale: 1.08 }}

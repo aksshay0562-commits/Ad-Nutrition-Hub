@@ -238,12 +238,58 @@
         }
       },
       "required": ["productId", "productName", "phone", "currentPrice", "targetPrice", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer star rating and review comment for a product",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique review ID"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Target product ID"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Customer reviewer name",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "rating": {
+          "type": "number",
+          "description": "Customer rating from 1 to 5 stars",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "comment": {
+          "type": "string",
+          "description": "Customer review feedback comment",
+          "minLength": 2,
+          "maxLength": 1000
+        },
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user ID if signed in"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Review submission timestamp"
+        }
+      },
+      "required": ["productId", "userName", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
     "/products/{productId}": {
       "schema": "Product",
       "description": "Publicly readable supplements catalog, manageable with strict schema and ID validation"
+    },
+    "/products/{productId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Publicly readable customer product ratings and reviews"
     },
     "/users/{userId}": {
       "schema": "UserProfile",

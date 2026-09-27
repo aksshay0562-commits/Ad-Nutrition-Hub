@@ -37,6 +37,16 @@ export interface PriceAlert {
   createdAt: string;
 }
 
+export interface Review {
+  id: string;
+  productId: string;
+  userName: string;
+  rating: number; // 1 to 5
+  comment: string;
+  createdAt: string;
+  userId?: string;
+}
+
 export const CATEGORIES = [
   'All',
   'Whey Protein',
@@ -61,6 +71,16 @@ export interface StoreInfo {
   addressDetail: string;
   phone: string;
   whatsapp: string;
+  phone2: string;
+  whatsapp2: string;
+  rawPhone1: string;
+  rawPhone2: string;
+  whatsappNumbers: Array<{
+    number: string;
+    display: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
   businessType: string;
   about: string;
   hours: {
@@ -80,6 +100,24 @@ export const STORE_INFO: StoreInfo = {
   addressDetail: "Mandi Mor, Main Road, Israna, Panipat, Haryana 132107",
   phone: "+91 70159 59517",
   whatsapp: "+91 70159 59517",
+  phone2: "+91 80532 26224",
+  whatsapp2: "+91 80532 26224",
+  rawPhone1: "917015959517",
+  rawPhone2: "918053226224",
+  whatsappNumbers: [
+    {
+      number: "917015959517",
+      display: "+91 70159 59517",
+      label: "Line 1 (Support & Orders)",
+      isPrimary: true
+    },
+    {
+      number: "918053226224",
+      display: "+91 80532 26224",
+      label: "Line 2 (Enquiry & Store)",
+      isPrimary: false
+    }
+  ],
   businessType: "AD Nutrition Hub Israna Shop",
   about: "AD Nutrition Hub Israna par fitness aur nutrition se related products ka collection available hai. Customers protein supplements, weight-gain products, vitamins, pre-workout aur fitness accessories ki product details, price aur availability dekh sakte hain.",
   hours: {

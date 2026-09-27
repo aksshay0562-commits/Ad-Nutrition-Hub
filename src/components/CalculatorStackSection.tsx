@@ -319,14 +319,14 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
   };
 
   // WhatsApp stack order link
-  const generateWhatsAppStackUrl = () => {
+  const generateWhatsAppStackUrl = (phone: string = STORE_INFO.rawPhone1) => {
     const productListText = currentStackData.products
       .map((p, i) => `  ${i + 1}. ${p.name} (${formatPrice(p.price)})`)
       .join('\n');
 
     const message = `Namaste AD Nutrition Hub Israna! 🏋️‍♂️\n\nMujhe yeh *${currentStackData.title}* order/confirm karna hai:\n\n${productListText}\n\n*Total MRP:* ${formatPrice(currentStackData.subtotal)}\n*Stack Bundle Price:* ${formatPrice(currentStackData.bundlePrice)} (Saved ${formatPrice(currentStackData.totalSavings)})\n\nKripya iska stock aur delivery confirmation bhejein. Dhanyawad!`;
 
-    return `https://wa.me/917015959517?text=${encodeURIComponent(message)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -935,25 +935,49 @@ export const CalculatorStackSection: React.FC<CalculatorStackSectionProps> = ({
                   <span>100% Genuine Importer Hologram Guaranteed • In-Store Pickup at Israna or Fast Shipping</span>
                 </div>
 
-                <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                  <a
-                    href={`tel:${STORE_INFO.phone}`}
-                    className="px-4 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold border border-neutral-700 flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Call Store</span>
-                  </a>
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={`tel:${STORE_INFO.phone}`}
+                      className="px-3 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold border border-neutral-700 flex items-center justify-center gap-1.5 transition-colors"
+                      title="Call Line 1: 70159 59517"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-amber-400" />
+                      <span>70159 59517</span>
+                    </a>
+                    <a
+                      href={`tel:${STORE_INFO.phone2}`}
+                      className="px-3 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold border border-neutral-700 flex items-center justify-center gap-1.5 transition-colors"
+                      title="Call Line 2: 80532 26224"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>80532 26224</span>
+                    </a>
+                  </div>
 
                   <a
-                    href={generateWhatsAppStackUrl()}
+                    href={generateWhatsAppStackUrl(STORE_INFO.rawPhone1)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => triggerHaptic('success')}
-                    className="flex-1 sm:flex-initial px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 sm:flex-initial px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     id="stack-order-whatsapp-btn"
                   >
                     <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Order Stack on WhatsApp ({formatPrice(currentStackData.bundlePrice)})</span>
+                    <span>Order Stack (Line 1: 70159 59517)</span>
+                  </a>
+
+                  <a
+                    href={generateWhatsAppStackUrl(STORE_INFO.rawPhone2)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => triggerHaptic('success')}
+                    className="px-4 py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-700/30 flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    title="Order via WhatsApp Line 2: 80532 26224"
+                    id="stack-order-whatsapp-line2-btn"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                    <span>Line 2 (80532 26224)</span>
                   </a>
                 </div>
               </div>

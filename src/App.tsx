@@ -759,14 +759,25 @@ export default function App() {
               >
                 Clear Filters
               </button>
-              <a
-                href={`https://wa.me/917015959517?text=${encodeURIComponent(`Namaste AD Nutrition Hub Israna! Mujhe ${searchQuery || 'supplement'} ke baare mein poochhna hai jo website par nahi mila.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
-              >
-                Ask on WhatsApp
-              </a>
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent(`Namaste AD Nutrition Hub Israna! Mujhe ${searchQuery || 'supplement'} ke baare mein poochhna hai jo website par nahi mila.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                >
+                  Ask Line 1 (70159 59517)
+                </a>
+                <a
+                  href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent(`Namaste AD Nutrition Hub Israna! Mujhe ${searchQuery || 'supplement'} ke baare mein poochhna hai jo website par nahi mila.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold"
+                  title="Ask on WhatsApp Line 2"
+                >
+                  Line 2 (80532 26224)
+                </a>
+              </div>
             </div>
           </div>
         ) : (
@@ -860,9 +871,15 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                    <a href={`tel:${STORE_INFO.phone}`} className="hover:underline font-bold text-white">
-                      {STORE_INFO.phone}
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a href={`tel:${STORE_INFO.phone}`} className="hover:underline font-bold text-white">
+                        {STORE_INFO.phone}
+                      </a>
+                      <span className="text-neutral-600">•</span>
+                      <a href={`tel:${STORE_INFO.phone2}`} className="hover:underline font-bold text-white">
+                        {STORE_INFO.phone2}
+                      </a>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Clock className="w-4 h-4 text-amber-400 shrink-0" />
@@ -871,22 +888,46 @@ export default function App() {
                 </div>
 
                 <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2">
-                  <a
-                    href={`https://wa.me/917015959517?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe guidance chaiye.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition-colors"
-                  >
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Chat with Shop Owner</span>
-                  </a>
-                  <a
-                    href={`tel:${STORE_INFO.phone}`}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Call Store Directly</span>
-                  </a>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe guidance chaiye.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition-colors"
+                      id="card-wa-line1-btn"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                      <span>WA: 70159 59517</span>
+                    </a>
+                    <a
+                      href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe guidance chaiye.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold shadow transition-colors"
+                      id="card-wa-line2-btn"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                      <span>WA: 80532 26224</span>
+                    </a>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={`tel:${STORE_INFO.phone}`}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
+                      title="Call Line 1: 70159 59517"
+                    >
+                      <Phone className="w-3 h-3 text-amber-400" />
+                      <span>Call: 70159 59517</span>
+                    </a>
+                    <a
+                      href={`tel:${STORE_INFO.phone2}`}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
+                      title="Call Line 2: 80532 26224"
+                    >
+                      <Phone className="w-3 h-3 text-emerald-400" />
+                      <span>Call: 80532 26224</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

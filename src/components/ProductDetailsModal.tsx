@@ -22,7 +22,8 @@ import {
   ExternalLink,
   Youtube,
   Play,
-  QrCode
+  QrCode,
+  Star
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -35,6 +36,7 @@ import {
 } from 'recharts';
 import { Product, PriceHistoryPoint, STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { ProductReviews } from './ProductReviews';
 import { 
   buildWhatsAppEnquiryUrl, 
   formatPrice, 
@@ -64,7 +66,9 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
   const { currentUser } = useAuth();
   const isInStock = product.availability === 'In Stock';
-  const whatsappUrl = buildWhatsAppEnquiryUrl(product);
+  const [selectedWhatsAppLine, setSelectedWhatsAppLine] = React.useState<'line1' | 'line2'>('line1');
+  const targetWhatsAppRaw = selectedWhatsAppLine === 'line1' ? STORE_INFO.rawPhone1 : STORE_INFO.rawPhone2;
+  const whatsappUrl = buildWhatsAppEnquiryUrl(product, undefined, targetWhatsAppRaw);
 
   // Price Drop Alert State
   const [showAlertForm, setShowAlertForm] = React.useState<boolean>(false);
@@ -280,10 +284,28 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 </span>
               </div>
 
-              {/* Title */}
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
-                {product.name}
-              </h2>
+              {/* Title & Review Rating Badge */}
+              <div className="space-y-1">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
+                  {product.name}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById(`product-reviews-${product.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-0.5 text-amber-400">
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                  </div>
+                  <span className="group-hover:underline">Customer Reviews & Ratings →</span>
+                </button>
+              </div>
 
               {/* Price Block */}
               <div className="p-3.5 rounded-xl bg-neutral-950/90 border border-neutral-800 space-y-1">
@@ -801,8 +823,49 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Action CTAs */}
+          {/* Customer Reviews & 5-Star Rating Component */}
+          <ProductReviews
+            productId={product.id}
+            productName={product.name}
+            isAdmin={isAdmin}
+          />
+
+          {/* Action CTAs with Dual WhatsApp Lines */}
           <div className="space-y-3 pt-2">
+            {/* WhatsApp Line Selector Header */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>WhatsApp Order Line:</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedWhatsAppLine('line1')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    selectedWhatsAppLine === 'line1'
+                      ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400/50'
+                      : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                  }`}
+                  id="modal-select-line1-btn"
+                >
+                  Line 1 (70159 59517)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedWhatsAppLine('line2')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    selectedWhatsAppLine === 'line2'
+                      ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400/50'
+                      : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                  }`}
+                  id="modal-select-line2-btn"
+                >
+                  Line 2 (80532 26224)
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <motion.a
                 whileHover={{ scale: 1.02 }}
@@ -814,27 +877,41 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 onClick={() => {
                   submitCustomerEnquiry({
                     customerName: 'Store Visitor',
-                    phone: '917015959517',
+                    phone: targetWhatsAppRaw,
                     message: `Interested in ${product.name} (₹${product.price})`,
                     productId: product.id,
                     productName: product.name,
                   }).catch(() => {});
                 }}
-                className="flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-950 transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-950 transition-colors cursor-pointer"
                 id="modal-order-whatsapp-btn"
               >
-                <MessageCircle className="w-5 h-5 fill-white" />
-                <span>Order / Enquire on WhatsApp</span>
+                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />
+                <span>
+                  Order via {selectedWhatsAppLine === 'line1' ? 'Line 1 (70159 59517)' : 'Line 2 (80532 26224)'}
+                </span>
               </motion.a>
 
-              <a
-                href={`tel:${STORE_INFO.phone}`}
-                className="flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-bold text-sm transition-colors"
-                id="modal-call-store-btn"
-              >
-                <Phone className="w-4 h-4 text-amber-400" />
-                <span>Call Shop: {STORE_INFO.phone}</span>
-              </a>
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`tel:${STORE_INFO.phone}`}
+                  className="flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-bold text-xs transition-colors"
+                  id="modal-call-line1-btn"
+                  title="Call Line 1: 70159 59517"
+                >
+                  <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="truncate">Call: 70159 59517</span>
+                </a>
+                <a
+                  href={`tel:${STORE_INFO.phone2}`}
+                  className="flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-bold text-xs transition-colors"
+                  id="modal-call-line2-btn"
+                  title="Call Line 2: 80532 26224"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">Call: 80532 26224</span>
+                </a>
+              </div>
             </div>
 
             {/* Quick Price Alert Banner CTA in Actions */}

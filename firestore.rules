@@ -92,12 +92,31 @@ service cloud.firestore {
         data.createdAt is string && data.createdAt.size() <= 40;
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll(['productId', 'userName', 'rating', 'comment', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'productId', 'userName', 'rating', 'comment', 'createdAt', 'userId']) &&
+        data.productId is string && data.productId.size() <= 128 &&
+        data.userName is string && data.userName.size() >= 2 && data.userName.size() <= 100 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 2 && data.comment.size() <= 1000 &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
     // Products catalog: publicly readable, manageable with strict schema and ID validation
     match /products/{productId} {
       allow get, list: if true;
       allow create: if isValidId(productId) && isValidProduct(incoming());
       allow update: if isValidId(productId) && isValidProduct(incoming());
       allow delete: if isValidId(productId);
+
+      // Product Reviews subcollection: publicly readable, created by visitors/users, manageable by creator or admin
+      match /reviews/{reviewId} {
+        allow get, list: if true;
+        allow create: if isValidId(reviewId) && isValidReview(incoming()) && incoming().productId == productId;
+        allow update, delete: if isVerifiedAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      }
     }
 
     // User profiles: readable and writable by account owner or verified admin

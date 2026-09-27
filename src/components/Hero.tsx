@@ -203,14 +203,25 @@ export const Hero: React.FC<HeroProps> = ({
               </div>
 
               {/* Bottom Quick Callout */}
-              <div className="mt-5 pt-4 border-t border-neutral-800 flex items-center justify-between text-xs text-neutral-400">
+              <div className="mt-5 pt-4 border-t border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
                 <span>📍 Mandi Mor, Israna</span>
-                <a
-                  href={`tel:${STORE_INFO.phone}`}
-                  className="text-amber-400 font-bold hover:underline"
-                >
-                  Call: {STORE_INFO.phone}
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`tel:${STORE_INFO.phone}`}
+                    className="text-amber-400 font-bold hover:underline"
+                    title="Call Line 1"
+                  >
+                    {STORE_INFO.phone}
+                  </a>
+                  <span className="text-neutral-600">•</span>
+                  <a
+                    href={`tel:${STORE_INFO.phone2}`}
+                    className="text-emerald-400 font-bold hover:underline"
+                    title="Call Line 2"
+                  >
+                    {STORE_INFO.phone2}
+                  </a>
+                </div>
               </div>
             </div>
           </div>

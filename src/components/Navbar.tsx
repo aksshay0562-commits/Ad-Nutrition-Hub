@@ -52,15 +52,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Mandi Mor, Israna, Panipat, Haryana</span>
             <span className="hidden md:inline">• 100% Genuine & Authentic Supplements</span>
           </div>
-          <div className="hidden sm:flex items-center gap-4 text-neutral-950 font-bold">
-            <span>Shop Timings: 8:00 AM - 9:00 PM</span>
+          <div className="hidden sm:flex items-center gap-3 text-neutral-950 font-bold text-xs">
+            <span>Shop: 8:00 AM - 9:00 PM</span>
+            <span className="text-amber-800">•</span>
             <a 
               href={`tel:${STORE_INFO.phone}`} 
               className="flex items-center gap-1 hover:underline"
               id="top-bar-phone-link"
+              title="Call Line 1"
             >
               <Phone className="w-3 h-3" />
               <span>{STORE_INFO.phone}</span>
+            </a>
+            <span className="text-amber-800">•</span>
+            <a 
+              href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna!')}`}
+              target="_blank"
+              rel="noopener noreferrer" 
+              className="flex items-center gap-1 hover:underline"
+              id="top-bar-whatsapp2-link"
+              title="WhatsApp Line 2"
+            >
+              <MessageCircle className="w-3 h-3" />
+              <span>{STORE_INFO.phone2}</span>
             </a>
           </div>
         </div>
@@ -310,14 +324,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Change App Colour & Theme</span>
               </button>
             )}
-            <a
-              href={`tel:${STORE_INFO.phone}`}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-sm font-medium text-neutral-200"
-              id="mobile-nav-call"
-            >
-              <Phone className="w-4 h-4 text-amber-400" />
-              <span>Call: {STORE_INFO.phone}</span>
-            </a>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={`tel:${STORE_INFO.phone}`}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-xs font-semibold text-neutral-200"
+                id="mobile-nav-call"
+              >
+                <Phone className="w-3.5 h-3.5 text-amber-400" />
+                <span>Call: 70159 59517</span>
+              </a>
+              <a
+                href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna!')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-emerald-950/80 border border-emerald-800 text-xs font-semibold text-emerald-300"
+                id="mobile-nav-whatsapp2"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>WA: 80532 26224</span>
+              </a>
+            </div>
             {currentUser ? (
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-neutral-300">
                 <div className="flex items-center gap-2 truncate">

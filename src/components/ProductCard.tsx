@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube, QrCode, Flame } from 'lucide-react';
+import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube, QrCode, Flame, Star } from 'lucide-react';
 import { Product } from '../types';
 import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
 
@@ -177,6 +177,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {product.weightOrSize}
             </span>
           )}
+        </div>
+
+        {/* 5-Star Rating Snippet */}
+        <div 
+          onClick={() => onViewDetails(product)}
+          className="flex items-center gap-1.5 mb-1.5 cursor-pointer group/rating"
+        >
+          <div className="flex items-center text-amber-400">
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+          </div>
+          <span className="text-[11px] font-bold text-neutral-400 group-hover/rating:text-amber-400 transition-colors">
+            5.0 (Reviews)
+          </span>
         </div>
 
         {/* Product Title */}
