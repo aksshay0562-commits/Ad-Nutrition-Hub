@@ -43,6 +43,8 @@ import { ProductScannerModal } from './components/ProductScannerModal';
 import { ProductQRModal } from './components/ProductQRModal';
 import { CalculatorStackSection } from './components/CalculatorStackSection';
 import { ThemeModal } from './components/ThemeModal';
+import { NutritionExpertModal } from './components/NutritionExpertModal';
+import { CatalogSortBar, ProductSortOption } from './components/CatalogSortBar';
 import { 
   initAppThemes, 
   applyColorTheme, 
@@ -61,7 +63,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
-  const [priceSort, setPriceSort] = useState<'default' | 'popularity' | 'low-to-high' | 'high-to-low'>('default');
+  const [priceSort, setPriceSort] = useState<ProductSortOption>('default');
   
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -69,6 +71,8 @@ export default function App() {
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isExpertModalOpen, setIsExpertModalOpen] = useState(false);
+  const [expertModalGoal, setExpertModalGoal] = useState<string | undefined>(undefined);
   const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
@@ -108,6 +112,12 @@ export default function App() {
     setCustomHex('#00F0FF');
     applyColorTheme('amber');
     applyBgTheme('midnight');
+  };
+
+  const handleOpenExpertAdvice = (goal?: string) => {
+    triggerHaptic('medium');
+    setExpertModalGoal(goal);
+    setIsExpertModalOpen(true);
   };
 
   // Track scan inactivity to animate the 'Scan Product' button with a subtle pulse/glow effect
@@ -421,27 +431,33 @@ export default function App() {
     }).sort((a, b) => {
       if (priceSort === 'popularity') {
         // 1. Sort by salesCount if available
-        if (typeof a.salesCount === 'number' || typeof b.salesCount === 'number') {
-          const salesA = a.salesCount ?? (a.featured ? 50 : 0);
-          const salesB = b.salesCount ?? (b.featured ? 50 : 0);
-          if (salesA !== salesB) return salesB - salesA;
-        }
+        const salesA = a.salesCount ?? (a.featured ? 60 : 10);
+        const salesB = b.salesCount ?? (b.featured ? 60 : 10);
+        if (salesA !== salesB) return salesB - salesA;
 
         // 2. Sort by views if available
-        if (typeof a.views === 'number' || typeof b.views === 'number') {
-          const viewsA = a.views ?? (a.featured ? 200 : 0);
-          const viewsB = b.views ?? (b.featured ? 200 : 0);
-          if (viewsA !== viewsB) return viewsB - viewsA;
-        }
+        const viewsA = a.views ?? (a.featured ? 300 : 25);
+        const viewsB = b.views ?? (b.featured ? 300 : 25);
+        if (viewsA !== viewsB) return viewsB - viewsA;
 
-        // 3. Move 'featured' products to the top of the list when selected
+        // 3. Move 'featured' products to top
         if (a.featured && !b.featured) return -1;
         if (!a.featured && b.featured) return 1;
 
         return 0;
       }
-      if (priceSort === 'low-to-high') return a.price - b.price;
-      if (priceSort === 'high-to-low') return b.price - a.price;
+      if (priceSort === 'low-to-high') {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (priceSort === 'high-to-low') {
+        return (b.price || 0) - (a.price || 0);
+      }
+      if (priceSort === 'discount') {
+        const discountA = a.originalPrice && a.originalPrice > a.price ? (a.originalPrice - a.price) : 0;
+        const discountB = b.originalPrice && b.originalPrice > b.price ? (b.originalPrice - b.price) : 0;
+        if (discountA !== discountB) return discountB - discountA;
+        return (a.price || 0) - (b.price || 0);
+      }
       return 0;
     });
   }, [products, selectedCategory, stockFilter, searchQuery, priceSort]);
@@ -487,6 +503,7 @@ export default function App() {
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         onOpenScanner={handleOpenScanner}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
+        onOpenExpertAdvice={() => handleOpenExpertAdvice()}
       />
 
       {/* Hero Section */}
@@ -500,6 +517,7 @@ export default function App() {
           }}
           onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
           onCalculatorClick={() => handleNavigate('calculator-stack')}
+          onOpenExpertAdvice={() => handleOpenExpertAdvice()}
         />
       </div>
 
@@ -669,14 +687,15 @@ export default function App() {
             <div className="md:col-span-3 flex items-center gap-1.5">
               <select
                 value={priceSort}
-                onChange={(e) => setPriceSort(e.target.value as any)}
-                className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700/80 text-neutral-200 text-xs sm:text-sm focus:outline-none focus:border-amber-500"
+                onChange={(e) => setPriceSort(e.target.value as ProductSortOption)}
+                className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700/80 text-neutral-200 text-xs sm:text-sm focus:outline-none focus:border-amber-500 cursor-pointer"
                 id="catalog-price-sort"
               >
                 <option value="default">Sort by: Default</option>
                 <option value="popularity">🔥 Popularity (Most Demanded)</option>
                 <option value="low-to-high">Price: Low to High</option>
                 <option value="high-to-low">Price: High to Low</option>
+                <option value="discount">🏷️ Top Deals (% Discount)</option>
               </select>
             </div>
           </div>
@@ -694,8 +713,9 @@ export default function App() {
               ) : null}
               {searchQuery && <span> matching "<span className="text-amber-300">{searchQuery}</span>"</span>}
               {priceSort === 'popularity' && <span> sorted by <strong className="text-amber-400">🔥 Popularity</strong></span>}
-              {priceSort === 'low-to-high' && <span> sorted by <strong className="text-amber-400">Price: Low to High</strong></span>}
-              {priceSort === 'high-to-low' && <span> sorted by <strong className="text-amber-400">Price: High to Low</strong></span>}
+              {priceSort === 'low-to-high' && <span> sorted by <strong className="text-emerald-400">💵 Price: Low to High</strong></span>}
+              {priceSort === 'high-to-low' && <span> sorted by <strong className="text-cyan-400">💎 Price: High to Low</strong></span>}
+              {priceSort === 'discount' && <span> sorted by <strong className="text-rose-400">🏷️ Top Deals (% Discount)</strong></span>}
             </div>
 
             {(selectedCategory !== 'All' || searchQuery || stockFilter !== 'all' || priceSort !== 'default') && (
@@ -714,13 +734,32 @@ export default function App() {
           </div>
         </div>
 
-        {/* Horizontal Scrollable Category Filter Pills Strip (Directly Above Product Grid) */}
-        <div className="mb-6" id="categories">
+        {/* Horizontal Scrollable Category Filter Pills Strip */}
+        <div className="mb-4" id="categories">
           <CategoryNav
             selectedCategory={selectedCategory}
             onSelectCategory={(cat) => setSelectedCategory(cat)}
             categoryCounts={categoryCounts}
             totalProductsCount={products.length}
+          />
+        </div>
+
+        {/* Dedicated Interactive Catalog Sort Bar */}
+        <div className="mb-6">
+          <CatalogSortBar
+            currentSort={priceSort}
+            onSelectSort={(newSort) => setPriceSort(newSort)}
+            totalFilteredCount={filteredProducts.length}
+            totalCatalogCount={products.length}
+            selectedCategory={selectedCategory}
+            stockFilter={stockFilter}
+            searchQuery={searchQuery}
+            onResetFilters={() => {
+              setSelectedCategory('All');
+              setSearchQuery('');
+              setStockFilter('all');
+              setPriceSort('default');
+            }}
           />
         </div>
 
@@ -783,22 +822,34 @@ export default function App() {
         ) : (
           /* Product Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product, idx) => (
-              <ProductCard
-                key={`catalog-${product.id}-${idx}`}
-                product={product}
-                index={idx}
-                onViewDetails={(p) => setSelectedProduct(p)}
-                onShowQR={(p) => setQrModalProduct(p)}
-                isAdmin={isAdmin}
-                onEdit={(p) => {
-                  setEditingProduct(p);
-                  setIsAdminModalOpen(true);
-                }}
-                onDelete={(p) => handleDeleteProduct(p.id)}
-                onToggleStock={handleToggleStock}
-              />
-            ))}
+            {filteredProducts.map((product, idx) => {
+              let dynamicBadge: string | undefined = undefined;
+              if (priceSort === 'popularity' && idx < 3) {
+                dynamicBadge = idx === 0 ? '🔥 #1 Trending' : '🔥 Top Seller';
+              } else if (priceSort === 'low-to-high' && idx === 0) {
+                dynamicBadge = '💵 Best Value';
+              } else if (priceSort === 'discount' && product.originalPrice && product.originalPrice > product.price) {
+                dynamicBadge = '🏷️ Top Deal';
+              }
+
+              return (
+                <ProductCard
+                  key={`catalog-${product.id}-${idx}`}
+                  product={product}
+                  index={idx}
+                  badge={dynamicBadge}
+                  onViewDetails={(p) => setSelectedProduct(p)}
+                  onShowQR={(p) => setQrModalProduct(p)}
+                  isAdmin={isAdmin}
+                  onEdit={(p) => {
+                    setEditingProduct(p);
+                    setIsAdminModalOpen(true);
+                  }}
+                  onDelete={(p) => handleDeleteProduct(p.id)}
+                  onToggleStock={handleToggleStock}
+                />
+              );
+            })}
           </div>
         )}
       </section>
@@ -807,6 +858,7 @@ export default function App() {
       <CalculatorStackSection
         products={products}
         onViewProductDetails={(p) => setSelectedProduct(p)}
+        onOpenExpertAdvice={(goal) => handleOpenExpertAdvice(goal)}
       />
 
       {/* About & Trust Features Section */}
@@ -939,7 +991,7 @@ export default function App() {
       <ContactSection />
 
       {/* Floating WhatsApp Action Button */}
-      <FloatingWhatsApp />
+      <FloatingWhatsApp onOpenExpertAdvice={() => handleOpenExpertAdvice()} />
 
       {/* Footer */}
       <Footer
@@ -1051,6 +1103,13 @@ export default function App() {
         onSelectCustomHex={handleSelectCustomHex}
         onSelectBg={handleSelectBgTheme}
         onReset={handleResetTheme}
+      />
+
+      {/* Nutrition Expert Consultation & Stack Recommendation Modal */}
+      <NutritionExpertModal
+        isOpen={isExpertModalOpen}
+        onClose={() => setIsExpertModalOpen(false)}
+        initialGoal={expertModalGoal}
       />
     </div>
   );

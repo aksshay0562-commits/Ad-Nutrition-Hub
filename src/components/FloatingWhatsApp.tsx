@@ -1,7 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'motion/react';
-import { MessageCircle, X, Share2, Check, Copy, QrCode, Download, ExternalLink, ZoomIn, ZoomOut, Maximize2, Minimize2, MessageSquare, Mail } from 'lucide-react';
+import { 
+  MessageCircle, 
+  X, 
+  Share2, 
+  Check, 
+  Copy, 
+  QrCode, 
+  Download, 
+  ExternalLink, 
+  ZoomIn, 
+  ZoomOut, 
+  Maximize2, 
+  Minimize2, 
+  MessageSquare, 
+  Mail,
+  SlidersHorizontal,
+  ShoppingBag,
+  HelpCircle,
+  CheckCircle2,
+  Palette,
+  Sparkles,
+  ChevronRight
+} from 'lucide-react';
 import { STORE_INFO } from '../types';
+import { 
+  WhatsAppLine, 
+  WhatsAppQueryType,
+  QUERY_TYPE_CONFIG,
+  buildWhatsAppUrl, 
+  buildWhatsAppShareUrl 
+} from '../utils/whatsapp';
+import { triggerHaptic } from '../utils/haptics';
+import { 
+  getQrBorderGradientConfig, 
+  getSavedColorTheme, 
+  getSavedCustomHex, 
+  applyColorTheme 
+} from '../utils/theme';
 
 interface Ripple {
   id: number;
@@ -10,15 +46,46 @@ interface Ripple {
   size: number;
 }
 
-export const FloatingWhatsApp: React.FC = () => {
+export interface FloatingWhatsAppProps {
+  onOpenExpertAdvice?: () => void;
+}
+
+export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
+  onOpenExpertAdvice,
+}) => {
   const [showTooltip, setShowTooltip] = useState(true);
   const [copied, setCopied] = useState(false);
   const [modalCopied, setModalCopied] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
   const [pressProgress, setPressProgress] = useState(0);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [showLineMenu, setShowLineMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [queryType, setQueryType] = useState<WhatsAppQueryType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ad_wa_preferred_query');
+      if (saved === 'orders' || saved === 'general') return saved as WhatsAppQueryType;
+    }
+    return 'orders';
+  });
+
+  const selectedLine: WhatsAppLine = QUERY_TYPE_CONFIG[queryType].line;
+
+  const handleSelectQueryType = (type: WhatsAppQueryType) => {
+    setQueryType(type);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ad_wa_preferred_query', type);
+    }
+  };
+
   const [isQrZoomed, setIsQrZoomed] = useState(false);
+  const [zoomCopied, setZoomCopied] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<string>(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.getAttribute('data-color-theme') || getSavedColorTheme();
+    }
+    return 'amber';
+  });
+  const [activeCustomHex, setActiveCustomHex] = useState<string>(getSavedCustomHex);
   const [isQrHovered, setIsQrHovered] = useState(false);
   const [verticalOffset, setVerticalOffset] = useState<number>(0);
   const [ripples, setRipples] = useState<Ripple[]>([]);
@@ -55,9 +122,8 @@ export const FloatingWhatsApp: React.FC = () => {
     setIsQrHovered(false);
   };
 
-  const whatsappUrl = `https://wa.me/917015959517?text=${encodeURIComponent(
-    'Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.'
-  )}`;
+  // Standardized WhatsApp URL for active query type (Orders vs General)
+  const whatsappUrl = buildWhatsAppUrl({ queryType });
 
   const getStoreUrl = () => {
     if (typeof window !== 'undefined') {
@@ -161,6 +227,43 @@ Visit the online catalog or walk in to check batch verification and current in-s
     }
   };
 
+  const handleZoomShare = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    triggerHaptic('success');
+    const url = getStoreUrl();
+    const shareText = `AD Nutrition Hub Israna - 100% Genuine Fitness & Nutrition Supplements in Mandi Mor, Israna, Panipat.\nVisit store: ${url}`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.share && /android|iphone|ipad/i.test(navigator.userAgent)) {
+        navigator.share({
+          title: 'AD Nutrition Hub Israna',
+          text: shareText,
+          url: url,
+        }).catch(() => {});
+      }
+
+      setZoomCopied(true);
+      setTimeout(() => setZoomCopied(false), 2500);
+    } catch (err) {
+      console.warn('Failed to share in zoom view:', err);
+    }
+  };
+
   const startHold = () => {
     holdTriggeredRef.current = false;
     setIsPressing(true);
@@ -242,6 +345,48 @@ Visit the online catalog or walk in to check batch verification and current in-s
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, [showQrModal, isQrZoomed]);
+
+  // Tactile haptic feedback when entering high-clarity scanner zoom
+  useEffect(() => {
+    if (isQrZoomed) {
+      triggerHaptic('medium');
+    } else {
+      setZoomCopied(false);
+    }
+  }, [isQrZoomed]);
+
+  // Sync with user's selected app color theme (e.g. gold/amber, emerald, cyan, etc.)
+  useEffect(() => {
+    const handleThemeChange = (e?: Event) => {
+      const customEvent = e as CustomEvent<{ themeId?: string; customHex?: string }> | undefined;
+      const themeId = customEvent?.detail?.themeId || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-color-theme') : null) || getSavedColorTheme();
+      const customHex = customEvent?.detail?.customHex || getSavedCustomHex();
+      setActiveTheme(themeId || 'amber');
+      setActiveCustomHex(customHex);
+    };
+
+    window.addEventListener('ad_theme_change', handleThemeChange);
+    window.addEventListener('storage', handleThemeChange);
+
+    let observer: MutationObserver | null = null;
+    if (typeof document !== 'undefined') {
+      observer = new MutationObserver(() => {
+        handleThemeChange();
+      });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-color-theme'],
+      });
+    }
+
+    return () => {
+      window.removeEventListener('ad_theme_change', handleThemeChange);
+      window.removeEventListener('storage', handleThemeChange);
+      if (observer) observer.disconnect();
+    };
+  }, []);
+
+  const qrThemeConfig = getQrBorderGradientConfig(activeTheme, activeCustomHex);
 
   // Detect if the floating widget overlaps with the footer and shift vertically
   useEffect(() => {
@@ -434,7 +579,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
               <div className="text-[11px] leading-snug">
                 <span>Enquire on WhatsApp! </span>
                 <span className="text-neutral-400 block sm:inline text-[10px]">
-                  (Line 1: 70159 59517 • Line 2: 80532 26224)
+                  (Toggle Settings ⚙️ for Orders vs General lines)
                 </span>
               </div>
               <button
@@ -450,96 +595,284 @@ Visit the online catalog or walk in to check batch verification and current in-s
           )}
         </AnimatePresence>
 
-        {/* Dual WhatsApp Line Selector Popover */}
+        {/* WhatsApp Settings & Line Switcher Menu */}
         <AnimatePresence>
-          {showLineMenu && (
+          {showSettingsMenu && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.88, y: 10 }}
+              initial={{ opacity: 0, scale: 0.9, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 8, transition: { duration: 0.15 } }}
-              className="bg-neutral-900 border border-neutral-700/80 rounded-2xl shadow-2xl p-3 w-72 space-y-2 origin-bottom-right"
-              id="whatsapp-dual-lines-popover"
+              exit={{ opacity: 0, scale: 0.92, y: 8, transition: { duration: 0.15 } }}
+              className="bg-neutral-900/95 backdrop-blur-md border border-neutral-700/80 rounded-2xl shadow-2xl p-3.5 w-80 sm:w-88 space-y-3 origin-bottom-right"
+              id="whatsapp-settings-menu"
             >
+              {/* Header */}
               <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Choose WhatsApp Line</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      WhatsApp Settings
+                    </h4>
+                    <p className="text-[10px] text-neutral-400">
+                      Switch line for different query types
+                    </p>
+                  </div>
+                </div>
                 <button
-                  onClick={() => setShowLineMenu(false)}
-                  className="text-neutral-400 hover:text-white p-0.5 rounded-lg hover:bg-neutral-800 transition-colors"
-                  aria-label="Close line selector"
+                  onClick={() => setShowSettingsMenu(false)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
+                  aria-label="Close WhatsApp settings"
+                  id="close-whatsapp-settings-btn"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Line 1 */}
-              <a
-                href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setShowLineMenu(false)}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 transition-all group"
-                id="floating-wa-line1-link"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
-                  1
+              {/* Segmented UI Toggle: Orders vs General */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-neutral-300">
+                    Query Routing Mode
+                  </span>
+                  <span className="text-[10px] text-neutral-400 flex items-center gap-1 font-semibold">
+                    <span className={`w-2 h-2 rounded-full ${
+                      queryType === 'orders' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-pulse'
+                    }`} />
+                    {queryType === 'orders' ? 'Orders Active' : 'General Active'}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                      {STORE_INFO.phone}
-                    </span>
-                    <span className="text-[10px] font-bold text-amber-400">Primary</span>
-                  </div>
-                  <p className="text-[10px] text-neutral-400 truncate">Orders & Supplement Enquiries</p>
-                </div>
-              </a>
 
-              {/* Line 2 */}
-              <a
-                href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setShowLineMenu(false)}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 transition-all group"
-                id="floating-wa-line2-link"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
-                  2
+                <div 
+                  className="grid grid-cols-2 p-1 rounded-xl bg-neutral-950 border border-neutral-800 text-xs font-bold relative"
+                  id="whatsapp-query-segmented-toggle"
+                >
+                  {/* Segment: Orders */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueryType('orders')}
+                    className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      queryType === 'orders'
+                        ? 'text-neutral-950'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                    id="toggle-query-orders-btn"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Orders</span>
+                    <span className="text-[9px] opacity-75 font-semibold">(Line 1)</span>
+                    {queryType === 'orders' && (
+                      <motion.div
+                        layoutId="activeQueryPill"
+                        className="absolute inset-0 bg-amber-400 rounded-lg -z-10 shadow-sm"
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                  </button>
+
+                  {/* Segment: General */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueryType('general')}
+                    className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      queryType === 'general'
+                        ? 'text-neutral-950'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                    id="toggle-query-general-btn"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>General</span>
+                    <span className="text-[9px] opacity-75 font-semibold">(Line 2)</span>
+                    {queryType === 'general' && (
+                      <motion.div
+                        layoutId="activeQueryPill"
+                        className="absolute inset-0 bg-emerald-400 rounded-lg -z-10 shadow-sm"
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                      {STORE_INFO.phone2}
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-400">Line 2</span>
+              </div>
+
+              {/* Interactive Line Selection Cards */}
+              <div className="space-y-2 pt-0.5">
+                {/* Line 1 Card (Orders) */}
+                <div
+                  onClick={() => handleSelectQueryType('orders')}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                    queryType === 'orders'
+                      ? 'bg-neutral-800/90 border-amber-500/70 ring-1 ring-amber-400/40 shadow-sm'
+                      : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
+                  }`}
+                  id="settings-line1-card"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                        queryType === 'orders'
+                          ? 'bg-amber-400 text-neutral-950'
+                          : 'bg-neutral-800 text-neutral-400'
+                      }`}>
+                        1
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors">
+                            {STORE_INFO.phone}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30">
+                            Orders & Stock
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400">
+                          Product bookings, current inventory & pricing
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                      {queryType === 'orders' && (
+                        <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                      )}
+                      <a
+                        href={buildWhatsAppUrl({ queryType: 'orders' })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSettingsMenu(false);
+                        }}
+                        className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
+                        title="Direct chat on Line 1"
+                      >
+                        <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                        <span>Chat</span>
+                      </a>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-neutral-400 truncate">Store WhatsApp & Instant Help</p>
                 </div>
-              </a>
+
+                {/* Line 2 Card (General) */}
+                <div
+                  onClick={() => handleSelectQueryType('general')}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                    queryType === 'general'
+                      ? 'bg-neutral-800/90 border-emerald-500/70 ring-1 ring-emerald-400/40 shadow-sm'
+                      : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
+                  }`}
+                  id="settings-line2-card"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                        queryType === 'general'
+                          ? 'bg-emerald-400 text-neutral-950'
+                          : 'bg-neutral-800 text-neutral-400'
+                      }`}>
+                        2
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
+                            {STORE_INFO.phone2}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-400/20 text-emerald-400 border border-emerald-400/30">
+                            General Enquiry
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400">
+                          Supplement advice, dosage, timing & shop queries
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                      {queryType === 'general' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      )}
+                      <a
+                        href={buildWhatsAppUrl({ queryType: 'general' })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSettingsMenu(false);
+                        }}
+                        className="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
+                        title="Direct chat on Line 2"
+                      >
+                        <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                        <span>Chat</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Structured Nutrition Expert Advice Banner */}
+              {onOpenExpertAdvice && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('medium');
+                    setShowSettingsMenu(false);
+                    onOpenExpertAdvice();
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 via-amber-500/15 to-emerald-500/15 hover:from-emerald-500/25 hover:to-amber-500/25 border border-emerald-500/40 text-left transition-all cursor-pointer flex items-center justify-between group"
+                  id="wa-menu-expert-advice-btn"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <p className="text-xs font-bold text-white">Nutrition Expert Advice</p>
+                      <p className="text-[10px] text-neutral-300">Personalized stack guidance before chat</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                </button>
+              )}
+
+              {/* Message Template Preview Banner */}
+              <div className="p-2.5 rounded-xl bg-neutral-950/90 border border-neutral-800/80 space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  <span>Pre-filled Enquiry Preview:</span>
+                  <span className={queryType === 'orders' ? 'text-amber-400' : 'text-emerald-400'}>
+                    {queryType === 'orders' ? 'Line 1 Template' : 'Line 2 Template'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-300 italic line-clamp-2 leading-relaxed">
+                  "{QUERY_TYPE_CONFIG[queryType].defaultMessage}"
+                </p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Main WhatsApp & Quick Action Buttons */}
         <div className="relative flex items-center gap-2">
-          {/* Quick Dual-Line WhatsApp Picker Toggle */}
+          {/* WhatsApp Settings & Line Switcher Toggle Button */}
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.90 }}
-            onClick={() => setShowLineMenu(!showLineMenu)}
-            className={`p-2.5 rounded-full border shadow-xl flex items-center justify-center transition-colors cursor-pointer ${
-              showLineMenu 
-                ? 'bg-emerald-600 text-white border-emerald-400' 
-                : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-700 text-emerald-400 hover:text-emerald-300'
+            onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+            className={`p-2.5 rounded-full border shadow-xl flex items-center justify-center transition-colors cursor-pointer relative ${
+              showSettingsMenu 
+                ? 'bg-amber-400 text-neutral-950 border-amber-300 shadow-amber-500/20' 
+                : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-700 text-neutral-300 hover:text-amber-400'
             }`}
-            title="Switch WhatsApp Line (Line 1: 70159 59517 | Line 2: 80532 26224)"
+            title={`WhatsApp Settings: Switch between Orders (${STORE_INFO.phone}) & General (${STORE_INFO.phone2})`}
             id="choose-whatsapp-line-btn"
-            aria-label="Choose WhatsApp Line"
+            aria-label="WhatsApp Settings & Query Switcher"
           >
-            <span className="text-[11px] font-black tracking-tight">2📲</span>
+            <SlidersHorizontal className="w-4 h-4" />
+            {/* Small active query type indicator dot */}
+            <span 
+              className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-neutral-900 ${
+                queryType === 'orders' ? 'bg-amber-400' : 'bg-emerald-400'
+              }`}
+            />
           </motion.button>
 
           {/* Share via QR Code Button */}
@@ -604,9 +937,19 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950'
             }`}
             id="floating-whatsapp-btn"
-            aria-label="Chat on WhatsApp with AD Nutrition Hub Israna (Hold to copy store link)"
-            title="Click to chat on WhatsApp • Hold to copy store link"
+            aria-label={`Chat on WhatsApp with AD Nutrition Hub Israna (${queryType === 'orders' ? 'Orders Line 1' : 'General Line 2'})`}
+            title={`Click to chat on WhatsApp (${queryType === 'orders' ? 'Orders: Line 1' : 'General: Line 2'}) • Hold to copy store link`}
           >
+            {/* Small active query line indicator badge on the button */}
+            <span
+              className={`absolute -top-2.5 right-4 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md border border-neutral-900 flex items-center gap-1 z-20 pointer-events-none transition-colors ${
+                queryType === 'orders' ? 'bg-amber-400 text-neutral-950' : 'bg-emerald-400 text-neutral-950'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-neutral-950 animate-pulse" />
+              <span>{queryType === 'orders' ? 'Orders: Line 1' : 'General: Line 2'}</span>
+            </span>
+
             {/* Subtle secondary glowing outer-ring animation when idle */}
             {!copied && !isPressing && (
               <>
@@ -697,10 +1040,12 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 ? 'Link Copied!'
                 : isPressing
                 ? 'Keep holding to copy...'
+                : queryType === 'orders'
+                ? 'WhatsApp Orders'
                 : 'WhatsApp Enquiry'}
             </span>
             <span className="relative z-10 sm:hidden">
-              {copied ? 'Copied!' : isPressing ? 'Holding...' : 'WhatsApp'}
+              {copied ? 'Copied!' : isPressing ? 'Holding...' : queryType === 'orders' ? 'Orders' : 'Enquiry'}
             </span>
           </motion.a>
         </div>
@@ -996,9 +1341,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.94 }}
                   transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                    `Check out AD Nutrition Hub Israna for 100% genuine supplements: ${storeUrl}`
-                  )}`}
+                  href={buildWhatsAppShareUrl(`Check out AD Nutrition Hub Israna for 100% genuine supplements: ${storeUrl}`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
@@ -1046,54 +1389,146 @@ Visit the online catalog or walk in to check batch verification and current in-s
       <AnimatePresence>
         {isQrZoomed && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[70] flex flex-col items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-md cursor-zoom-out"
-            onClick={() => setIsQrZoomed(false)}
+            initial={{ opacity: 0, scale: 0.94, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            exit={{ 
+              opacity: 0, 
+              scale: 0.96, 
+              filter: 'blur(6px)', 
+              transition: { duration: 0.22, ease: [0.32, 0, 0.67, 0] } 
+            }}
+            transition={{ 
+              type: 'spring', 
+              stiffness: 260, 
+              damping: 22, 
+              mass: 0.78 
+            }}
+            className="fixed inset-0 z-[70] flex flex-col items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-md cursor-zoom-out select-none"
+            onClick={() => {
+              triggerHaptic('light');
+              setIsQrZoomed(false);
+            }}
             id="qr-fullscreen-zoom-overlay"
           >
-            {/* Top Bar Controls */}
-            <div 
+            {/* Top Bar Controls with Spring Slide-in */}
+            <motion.div 
+              initial={{ opacity: 0, y: -24, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -16, scale: 0.96 }}
+              transition={{ 
+                type: 'spring', 
+                stiffness: 320, 
+                damping: 22, 
+                mass: 0.7, 
+                delay: 0.04 
+              }}
               className="absolute top-4 sm:top-6 left-4 right-4 sm:left-8 sm:right-8 flex items-center justify-between pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  <span 
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                    style={{ backgroundColor: qrThemeConfig.accentHex }}
+                  />
+                  <span 
+                    className="relative inline-flex rounded-full h-2.5 w-2.5"
+                    style={{ backgroundColor: qrThemeConfig.accentHex }}
+                  />
                 </span>
-                <span className="text-xs sm:text-sm font-semibold text-neutral-200 tracking-wide">
+                <span className="text-xs sm:text-sm font-semibold text-neutral-200 tracking-wide hidden xs:inline">
                   High-Clarity Scanner Mode
                 </span>
+
+                {/* Theme Selector Pill synced to app color themes */}
+                <div 
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-neutral-900/90 border border-neutral-700/80 shadow-md backdrop-blur-sm"
+                  id="qr-zoom-theme-picker"
+                  title={`Active theme: ${qrThemeConfig.name}. Click to switch theme`}
+                >
+                  <Palette className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <div className="flex items-center gap-1">
+                    {[
+                      { id: 'gold', name: 'Gold', hex: '#f59e0b' },
+                      { id: 'emerald', name: 'Emerald', hex: '#10b981' },
+                      { id: 'cyan', name: 'Cyan', hex: '#06b6d4' },
+                      { id: 'crimson', name: 'Crimson', hex: '#ef4444' },
+                      { id: 'purple', name: 'Purple', hex: '#a855f7' },
+                    ].map((theme) => {
+                      const isCurrent = activeTheme === theme.id || (theme.id === 'gold' && (activeTheme === 'amber' || activeTheme === 'gold'));
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            const targetId = theme.id === 'gold' ? 'amber' : theme.id;
+                            applyColorTheme(targetId);
+                            setActiveTheme(targetId);
+                          }}
+                          className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-all cursor-pointer relative ${
+                            isCurrent ? 'ring-2 ring-white scale-125 shadow-sm' : 'hover:scale-110 opacity-70 hover:opacity-100'
+                          }`}
+                          style={{ backgroundColor: theme.hex }}
+                          title={`Switch to ${theme.name} theme`}
+                          aria-label={`Switch to ${theme.name} theme`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
+
               <button
-                onClick={() => setIsQrZoomed(false)}
-                className="px-3.5 py-1.5 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setIsQrZoomed(false);
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg active:scale-95"
                 id="close-qr-zoom-btn"
                 aria-label="Exit fullscreen QR mode"
               >
-                <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                <Minimize2 className="w-3.5 h-3.5" style={{ color: qrThemeConfig.accentHex }} />
                 <span>Exit Fullscreen (Esc)</span>
               </button>
-            </div>
+            </motion.div>
 
-            {/* Scaled Fullscreen QR Card */}
+            {/* Pronounced Spring-Scaled Fullscreen QR Card */}
             <motion.div
-              initial={{ scale: 0.72, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.72, y: 15 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="relative p-2 sm:p-2.5 rounded-3xl shadow-2xl shadow-amber-500/30 max-w-sm sm:max-w-md w-full my-auto text-center cursor-zoom-out"
-              onClick={() => setIsQrZoomed(false)}
+              initial={{ scale: 0.32, opacity: 0, y: 56, rotateX: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0, rotateX: 0 }}
+              exit={{ 
+                scale: 0.45, 
+                opacity: 0, 
+                y: 36, 
+                rotateX: -8,
+                transition: { type: 'spring', stiffness: 380, damping: 28, mass: 0.6 } 
+              }}
+              whileHover={{ scale: 1.025 }}
+              whileTap={{ scale: 0.965 }}
+              transition={{ 
+                type: 'spring', 
+                stiffness: 340, 
+                damping: 18, 
+                mass: 0.72, 
+                restDelta: 0.001 
+              }}
+              style={{ 
+                transformPerspective: 1000,
+                boxShadow: `0 25px 50px -12px ${qrThemeConfig.glowColor}`,
+              }}
+              className={`relative p-2 sm:p-2.5 rounded-3xl max-w-sm sm:max-w-md w-full my-auto text-center cursor-zoom-out overflow-hidden shadow-2xl ${qrThemeConfig.shadowClass}`}
+              onClick={() => {
+                triggerHaptic('light');
+                setIsQrZoomed(false);
+              }}
             >
-              {/* Ambient rotating glow */}
+              {/* Ambient rotating glow synced to active theme */}
               <motion.div
-                className="absolute -inset-2 rounded-3xl blur-xl opacity-60 pointer-events-none -z-20"
+                className="absolute -inset-2 rounded-3xl blur-xl opacity-65 pointer-events-none -z-20 transition-all duration-500"
                 style={{
-                  background:
-                    'conic-gradient(from 0deg, #f59e0b 0%, #fbbf24 20%, #10b981 40%, #06b6d4 60%, #fbbf24 80%, #f59e0b 100%)',
+                  background: qrThemeConfig.conicGradient,
+                  filter: `drop-shadow(0 0 20px ${qrThemeConfig.glowColor})`,
                 }}
                 animate={{ rotate: 360 }}
                 transition={{
@@ -1104,13 +1539,12 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 aria-hidden="true"
               />
 
-              {/* Rotating gradient-border mask layer with metallic sweep */}
+              {/* Rotating gradient-border mask layer with metallic sweep synced to active theme */}
               <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none -z-10">
                 <motion.div
-                  className="absolute -inset-[140%] pointer-events-none"
+                  className="absolute -inset-[140%] pointer-events-none transition-all duration-500"
                   style={{
-                    background:
-                      'conic-gradient(from 0deg, #f59e0b 0%, #fbbf24 20%, #10b981 40%, #06b6d4 60%, #fbbf24 80%, #f59e0b 100%)',
+                    background: qrThemeConfig.conicGradient,
                   }}
                   animate={{ rotate: 360 }}
                   transition={{
@@ -1138,50 +1572,164 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 />
               </div>
 
-              {/* Elevated white QR card */}
+              {/* Elevated white QR card with Surface Shimmer Sweep */}
               <div className="relative z-10 bg-white p-5 sm:p-6 rounded-2xl shadow-inner flex flex-col items-center justify-center overflow-hidden">
                 <img
                   src={qrCodeLargeImageUrl}
                   alt="Store QR Code Fullscreen"
-                  className="w-64 h-64 sm:w-80 sm:h-80 md:w-88 md:h-88 object-contain block select-none"
+                  className="w-64 h-64 sm:w-80 sm:h-80 md:w-88 md:h-88 object-contain block select-none relative z-10"
                   loading="eager"
+                />
+
+                {/* Small, pulsing 'Tap to Share' hint label below the QR code */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0,
+                    scale: [1, 1.05, 1],
+                  }}
+                  transition={{
+                    opacity: { duration: 0.3, delay: 0.15 },
+                    y: { duration: 0.3, delay: 0.15 },
+                    scale: {
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }
+                  }}
+                  className="relative z-40 mt-3 flex justify-center pointer-events-auto"
+                >
+                  <motion.button
+                    type="button"
+                    onClick={handleZoomShare}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer select-none border ${
+                      zoomCopied
+                        ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-extrabold shadow-emerald-500/40 ring-2 ring-emerald-400/50'
+                        : 'bg-neutral-950 hover:bg-neutral-900 text-amber-400 border-amber-400/50 hover:border-amber-300 shadow-amber-500/20'
+                    }`}
+                    style={
+                      !zoomCopied
+                        ? {
+                            borderColor: `${qrThemeConfig.accentHex}80`,
+                            color: qrThemeConfig.accentHex,
+                          }
+                        : undefined
+                    }
+                    id="qr-zoom-tap-to-share-hint"
+                    title="Tap to share or copy store link"
+                    aria-label="Tap to share store link"
+                  >
+                    {zoomCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-neutral-950 stroke-[3]" />
+                        <span>Store Link Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="relative flex h-2 w-2">
+                          <span 
+                            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-80"
+                            style={{ backgroundColor: qrThemeConfig.accentHex }}
+                          />
+                          <span 
+                            className="relative inline-flex rounded-full h-2 w-2"
+                            style={{ backgroundColor: qrThemeConfig.accentHex }}
+                          />
+                        </span>
+                        <Share2 className="w-3.5 h-3.5" style={{ color: qrThemeConfig.accentHex }} />
+                        <span className="tracking-wide">Tap to Share</span>
+                      </>
+                    )}
+                  </motion.button>
+                </motion.div>
+
+                {/* Gentle Shimmer Sweep Effect across the surface of the zoomed QR card synced to theme */}
+                <motion.div
+                  className="absolute -inset-[120%] pointer-events-none z-20 mix-blend-screen"
+                  style={{
+                    background:
+                      `linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.0) 42%, rgba(255, 255, 255, 0.65) 50%, ${qrThemeConfig.shimmerColor} 54%, rgba(255, 255, 255, 0.6) 58%, transparent 66%)`,
+                  }}
+                  initial={{ x: '-130%', y: '-130%' }}
+                  animate={{ x: '130%', y: '130%' }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    repeatDelay: 2.5,
+                    ease: [0.25, 0.1, 0.25, 1],
+                  }}
+                  aria-hidden="true"
+                />
+
+                {/* Secondary gentle diagonal gloss sweep */}
+                <motion.div
+                  className="absolute -inset-[100%] pointer-events-none z-20 opacity-40 mix-blend-overlay"
+                  style={{
+                    background:
+                      'linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.8) 50%, transparent 60%)',
+                  }}
+                  initial={{ x: '-100%', y: '-100%' }}
+                  animate={{ x: '100%', y: '100%' }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    repeatDelay: 3,
+                    ease: 'easeInOut',
+                    delay: 0.8,
+                  }}
+                  aria-hidden="true"
                 />
 
                 {/* Laminated glass overlay */}
                 <div
-                  className="absolute inset-0 pointer-events-none rounded-2xl"
+                  className="absolute inset-0 pointer-events-none rounded-2xl z-30"
                   style={{
                     background:
-                      'linear-gradient(130deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.16) 32%, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.04) 75%, rgba(255, 255, 255, 0.22) 100%)',
+                      'linear-gradient(130deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.14) 32%, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.04) 75%, rgba(255, 255, 255, 0.2) 100%)',
                     boxShadow:
-                      'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06)',
+                      'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06)',
                   }}
                   aria-hidden="true"
                 />
               </div>
 
-              {/* Outer sheen */}
+              {/* Outer sheen and edge highlight */}
               <div
                 className="absolute inset-0 rounded-3xl pointer-events-none z-20"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 24%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.1) 100%)',
-                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.5)',
+                  boxShadow: 'inset 0 1px 1.5px rgba(255, 255, 255, 0.6)',
                 }}
                 aria-hidden="true"
               />
             </motion.div>
 
-            {/* Bottom Dismiss Instruction */}
-            <div className="mt-4 sm:mt-6 text-center space-y-1 pointer-events-none select-none">
+            {/* Bottom Dismiss Instruction with Spring Slide-in */}
+            <motion.div 
+              initial={{ opacity: 0, y: 24, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ 
+                type: 'spring', 
+                stiffness: 300, 
+                damping: 22, 
+                mass: 0.7, 
+                delay: 0.06 
+              }}
+              className="mt-4 sm:mt-6 text-center space-y-1 pointer-events-none select-none"
+            >
               <p className="text-sm font-semibold text-white tracking-wide">
                 AD Nutrition Hub Israna
               </p>
               <p className="text-xs text-neutral-400 flex items-center justify-center gap-1.5">
-                <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+                <ZoomOut className="w-3.5 h-3.5" style={{ color: qrThemeConfig.accentHex }} />
                 Click anywhere or press Esc to exit zoom
               </p>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

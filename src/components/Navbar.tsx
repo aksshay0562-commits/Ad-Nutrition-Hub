@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode, Palette } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode, Palette, Sparkles } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -13,6 +13,7 @@ interface NavbarProps {
   onOpenAndroidModal?: () => void;
   onOpenScanner?: () => void;
   onOpenThemeModal?: () => void;
+  onOpenExpertAdvice?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,7 +24,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   onOpenAndroidModal,
   onOpenScanner,
-  onOpenThemeModal
+  onOpenThemeModal,
+  onOpenExpertAdvice
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
@@ -137,6 +139,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Phone className="w-3.5 h-3.5 text-amber-400" />
               <span>Call Store</span>
             </a>
+
+            {/* Nutrition Expert Consultation Button */}
+            {onOpenExpertAdvice && (
+              <button
+                onClick={onOpenExpertAdvice}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer group"
+                id="navbar-expert-advice-btn"
+                title="Get Personalized Stack & Nutrition Guidance"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span className="hidden xl:inline">Expert Advice</span>
+              </button>
+            )}
 
             {/* Quick WhatsApp */}
             <a
@@ -298,6 +313,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }} 
               variant="mobile" 
             />
+            {onOpenExpertAdvice && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenExpertAdvice();
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-500/40 text-sm font-bold text-amber-300 hover:bg-amber-500/30 shadow-sm"
+                id="mobile-nav-expert-advice"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Nutrition Expert Stack Advice</span>
+              </button>
+            )}
             {onOpenScanner && (
               <button
                 onClick={() => {

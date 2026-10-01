@@ -294,6 +294,9 @@ export const applyColorTheme = (themeId: string): void => {
 
   try {
     localStorage.setItem(STORAGE_KEY_COLOR, themeId);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ad_theme_change', { detail: { themeId } }));
+    }
   } catch (e) {
     console.error('Failed to save color theme to localStorage', e);
   }
@@ -314,10 +317,146 @@ export const applyCustomUniqueColor = (hex: string): void => {
   try {
     localStorage.setItem(STORAGE_KEY_COLOR, 'custom');
     localStorage.setItem(STORAGE_KEY_CUSTOM_HEX, hex);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ad_theme_change', { detail: { themeId: 'custom', customHex: hex } }));
+    }
   } catch (e) {
     console.error('Failed to save custom color to localStorage', e);
   }
 };
+
+export interface QrThemeGradient {
+  themeId: string;
+  name: string;
+  conicGradient: string;
+  glowColor: string;
+  shimmerColor: string;
+  accentHex: string;
+  shadowClass: string;
+}
+
+export function getQrBorderGradientConfig(themeId: string, customHex?: string): QrThemeGradient {
+  const effectiveTheme = themeId || 'amber';
+
+  if (effectiveTheme === 'custom' && customHex) {
+    const rgb = hexToRgb(customHex) || { r: 245, g: 158, b: 11 };
+    const lighter = rgbToHex(mixRgb(rgb, { r: 255, g: 255, b: 255 }, 0.45).r, mixRgb(rgb, { r: 255, g: 255, b: 255 }, 0.45).g, mixRgb(rgb, { r: 255, g: 255, b: 255 }, 0.45).b);
+    const darker = rgbToHex(mixRgb(rgb, { r: 0, g: 0, b: 0 }, 0.35).r, mixRgb(rgb, { r: 0, g: 0, b: 0 }, 0.35).g, mixRgb(rgb, { r: 0, g: 0, b: 0 }, 0.35).b);
+    return {
+      themeId: 'custom',
+      name: 'Custom',
+      conicGradient: `conic-gradient(from 0deg, ${customHex} 0%, ${lighter} 25%, ${darker} 50%, ${lighter} 75%, ${customHex} 100%)`,
+      glowColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.65)`,
+      shimmerColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`,
+      accentHex: customHex,
+      shadowClass: 'shadow-amber-500/35',
+    };
+  }
+
+  switch (effectiveTheme) {
+    case 'emerald':
+      return {
+        themeId: 'emerald',
+        name: 'Emerald Green',
+        conicGradient: 'conic-gradient(from 0deg, #10b981 0%, #34d399 22%, #059669 45%, #6ee7b7 68%, #34d399 85%, #10b981 100%)',
+        glowColor: 'rgba(16, 185, 129, 0.65)',
+        shimmerColor: 'rgba(52, 211, 153, 0.35)',
+        accentHex: '#10b981',
+        shadowClass: 'shadow-emerald-500/35',
+      };
+    case 'cyan':
+      return {
+        themeId: 'cyan',
+        name: 'Electric Cyan',
+        conicGradient: 'conic-gradient(from 0deg, #06b6d4 0%, #22d3ee 22%, #0891b2 45%, #67e8f9 68%, #22d3ee 85%, #06b6d4 100%)',
+        glowColor: 'rgba(6, 182, 212, 0.65)',
+        shimmerColor: 'rgba(34, 211, 238, 0.35)',
+        accentHex: '#06b6d4',
+        shadowClass: 'shadow-cyan-500/35',
+      };
+    case 'crimson':
+      return {
+        themeId: 'crimson',
+        name: 'Crimson Red',
+        conicGradient: 'conic-gradient(from 0deg, #ef4444 0%, #f87171 22%, #dc2626 45%, #fca5a5 68%, #f87171 85%, #ef4444 100%)',
+        glowColor: 'rgba(239, 68, 68, 0.65)',
+        shimmerColor: 'rgba(248, 113, 113, 0.35)',
+        accentHex: '#ef4444',
+        shadowClass: 'shadow-red-500/35',
+      };
+    case 'purple':
+      return {
+        themeId: 'purple',
+        name: 'Neon Purple',
+        conicGradient: 'conic-gradient(from 0deg, #a855f7 0%, #c084fc 22%, #9333ea 45%, #e9d5ff 68%, #c084fc 85%, #a855f7 100%)',
+        glowColor: 'rgba(168, 85, 247, 0.65)',
+        shimmerColor: 'rgba(192, 132, 252, 0.35)',
+        accentHex: '#a855f7',
+        shadowClass: 'shadow-purple-500/35',
+      };
+    case 'orange':
+      return {
+        themeId: 'orange',
+        name: 'Solar Orange',
+        conicGradient: 'conic-gradient(from 0deg, #f97316 0%, #fb923c 22%, #ea580c 45%, #fed7aa 68%, #fb923c 85%, #f97316 100%)',
+        glowColor: 'rgba(249, 115, 22, 0.65)',
+        shimmerColor: 'rgba(251, 146, 60, 0.35)',
+        accentHex: '#f97316',
+        shadowClass: 'shadow-orange-500/35',
+      };
+    case 'rose':
+      return {
+        themeId: 'rose',
+        name: 'Power Rose',
+        conicGradient: 'conic-gradient(from 0deg, #f43f5e 0%, #fb7185 22%, #e11d48 45%, #fecdd3 68%, #fb7185 85%, #f43f5e 100%)',
+        glowColor: 'rgba(244, 63, 94, 0.65)',
+        shimmerColor: 'rgba(251, 113, 133, 0.35)',
+        accentHex: '#f43f5e',
+        shadowClass: 'shadow-rose-500/35',
+      };
+    case 'lime':
+      return {
+        themeId: 'lime',
+        name: 'Volt Lime',
+        conicGradient: 'conic-gradient(from 0deg, #84cc16 0%, #a3e635 22%, #65a30d 45%, #d9f99d 68%, #a3e635 85%, #84cc16 100%)',
+        glowColor: 'rgba(132, 204, 22, 0.65)',
+        shimmerColor: 'rgba(163, 230, 53, 0.35)',
+        accentHex: '#84cc16',
+        shadowClass: 'shadow-lime-500/35',
+      };
+    case 'aurora':
+      return {
+        themeId: 'aurora',
+        name: 'Cosmic Aurora',
+        conicGradient: 'conic-gradient(from 0deg, #14b8a6 0%, #5eead4 22%, #0d9488 45%, #99f6e4 68%, #5eead4 85%, #14b8a6 100%)',
+        glowColor: 'rgba(20, 184, 166, 0.65)',
+        shimmerColor: 'rgba(94, 234, 212, 0.35)',
+        accentHex: '#14b8a6',
+        shadowClass: 'shadow-teal-500/35',
+      };
+    case 'gold':
+      return {
+        themeId: 'gold',
+        name: '24K Liquid Gold',
+        conicGradient: 'conic-gradient(from 0deg, #eab308 0%, #fef08a 22%, #ca8a04 45%, #fef9c3 68%, #fef08a 85%, #eab308 100%)',
+        glowColor: 'rgba(234, 179, 8, 0.7)',
+        shimmerColor: 'rgba(254, 240, 138, 0.4)',
+        accentHex: '#eab308',
+        shadowClass: 'shadow-yellow-500/40',
+      };
+    case 'amber':
+    default:
+      return {
+        themeId: 'amber',
+        name: 'Gold Amber',
+        conicGradient: 'conic-gradient(from 0deg, #f59e0b 0%, #fbbf24 22%, #d97706 45%, #fde68a 68%, #fbbf24 85%, #f59e0b 100%)',
+        glowColor: 'rgba(245, 158, 11, 0.65)',
+        shimmerColor: 'rgba(251, 191, 36, 0.35)',
+        accentHex: '#f59e0b',
+        shadowClass: 'shadow-amber-500/35',
+      };
+  }
+}
 
 export const applyBgTheme = (bgId: string): void => {
   if (typeof document === 'undefined') return;

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
+import { NutritionVideoBackground } from './NutritionVideoBackground';
 
 interface HeroProps {
   onExploreClick: () => void;
@@ -10,6 +11,7 @@ interface HeroProps {
   onCategorySelect: (category: string) => void;
   onOpenAndroidModal?: () => void;
   onCalculatorClick?: () => void;
+  onOpenExpertAdvice?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -17,7 +19,8 @@ export const Hero: React.FC<HeroProps> = ({
   onLocationClick,
   onCategorySelect,
   onOpenAndroidModal,
-  onCalculatorClick
+  onCalculatorClick,
+  onOpenExpertAdvice
 }) => {
   const quickCategories = [
     { label: 'Whey Protein', icon: '🥛', category: 'Whey Protein' },
@@ -28,7 +31,10 @@ export const Hero: React.FC<HeroProps> = ({
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-neutral-900 via-neutral-950 to-neutral-950 border-b border-neutral-800/80 pt-8 pb-14 sm:pt-12 sm:pb-20" id="home">
+    <section className="relative overflow-hidden bg-neutral-950 border-b border-neutral-800/80 pt-8 pb-14 sm:pt-12 sm:pb-20" id="home">
+      {/* Background Auto-Playing Nutrition & Fitness Workout Video Animation */}
+      <NutritionVideoBackground />
+
       {/* Background radial glow accents */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-amber-500/10 blur-3xl pointer-events-none rounded-full" />
       <div className="absolute -top-10 -right-10 w-72 h-72 bg-amber-600/10 blur-2xl pointer-events-none rounded-full" />
@@ -55,6 +61,20 @@ export const Hero: React.FC<HeroProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>Calculator & Stacks</span>
                   <ArrowRight className="w-3 h-3 text-amber-400" />
+                </button>
+              )}
+
+              {onOpenExpertAdvice && (
+                <button
+                  type="button"
+                  onClick={onOpenExpertAdvice}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:scale-105 hover:border-emerald-400 transition-all shadow-sm cursor-pointer"
+                  id="hero-expert-advice-badge"
+                  title="Ask Nutrition Expert for Personalized Stack"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Free Expert Advice</span>
+                  <ArrowRight className="w-3 h-3 text-emerald-400" />
                 </button>
               )}
             </div>
@@ -109,6 +129,21 @@ export const Hero: React.FC<HeroProps> = ({
                 <MessageCircle className="w-5 h-5 fill-white" />
                 <span>WhatsApp Enquiry</span>
               </motion.a>
+
+              {onOpenExpertAdvice && (
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.94, y: 1 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  type="button"
+                  onClick={onOpenExpertAdvice}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-amber-500/40 text-amber-300 font-bold text-sm sm:text-base shadow-lg transition-colors cursor-pointer"
+                  id="hero-expert-advice-btn"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Ask Nutritionist</span>
+                </motion.button>
+              )}
 
               <button
                 onClick={onLocationClick}

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Phone, MessageCircle, Clock, ShieldCheck, Navigation, ExternalLink } from 'lucide-react';
 import { STORE_INFO } from '../types';
+import { buildWhatsAppUrl } from '../utils/whatsapp';
 
 export const ContactSection: React.FC = () => {
   return (
@@ -87,7 +88,7 @@ export const ContactSection: React.FC = () => {
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.94 }}
                         transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                        href={`https://wa.me/${STORE_INFO.rawPhone1}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                        href={buildWhatsAppUrl('line1')}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
@@ -124,7 +125,7 @@ export const ContactSection: React.FC = () => {
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.94 }}
                         transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                        href={`https://wa.me/${STORE_INFO.rawPhone2}?text=${encodeURIComponent('Namaste AD Nutrition Hub Israna! Mujhe supplements ke baare mein enquire karna hai.')}`}
+                        href={buildWhatsAppUrl('line2')}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
