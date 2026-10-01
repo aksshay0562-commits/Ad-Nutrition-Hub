@@ -23,7 +23,8 @@ import {
   Youtube,
   Play,
   QrCode,
-  Star
+  Star,
+  Zap
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -37,6 +38,7 @@ import {
 import { Product, PriceHistoryPoint, STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { ProductReviews } from './ProductReviews';
+import { triggerHaptic } from '../utils/haptics';
 import { 
   buildWhatsAppEnquiryUrl, 
   formatPrice, 
@@ -44,12 +46,14 @@ import {
   submitPriceAlert,
   buildWhatsAppPriceAlertUrl,
   getYoutubeEmbedUrl,
-  getYoutubeVideoId
+  getYoutubeVideoId,
+  isQuickBuyProduct
 } from '../services/productService';
 
 interface ProductDetailsModalProps {
   product: Product | null;
   onClose: () => void;
+  onQuickOrder?: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onShowQR?: (product: Product) => void;
   isAdmin?: boolean;
@@ -58,6 +62,7 @@ interface ProductDetailsModalProps {
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   product,
   onClose,
+  onQuickOrder,
   onEdit,
   onShowQR,
   isAdmin = false
@@ -66,6 +71,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
   const { currentUser } = useAuth();
   const isInStock = product.availability === 'In Stock';
+  const isQuickBuy = isQuickBuyProduct(product);
   const [selectedWhatsAppLine, setSelectedWhatsAppLine] = React.useState<'line1' | 'line2'>('line1');
   const targetWhatsAppRaw = selectedWhatsAppLine === 'line1' ? STORE_INFO.rawPhone1 : STORE_INFO.rawPhone2;
   const whatsappUrl = buildWhatsAppEnquiryUrl(product, undefined, targetWhatsAppRaw);
@@ -272,16 +278,27 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                   Brand: <span className="text-neutral-200">{product.brand || 'AD Nutrition Hub'}</span>
                 </span>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                    isInStock
-                      ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
-                      : 'bg-red-950/80 text-red-400 border-red-800'
-                  }`}
-                >
-                  {isInStock ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                  <span>{product.availability}</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  {isQuickBuy && (
+                    <span 
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-neutral-950 text-[11px] font-black uppercase tracking-wider shadow-sm ring-1 ring-amber-300/60"
+                      title={`High customer demand with ${product.salesCount || 200}+ units sold`}
+                    >
+                      <Zap className="w-3 h-3 fill-neutral-950 text-neutral-950 animate-pulse" />
+                      <span>Quick-Buy</span>
+                    </span>
+                  )}
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                      isInStock
+                        ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+                        : 'bg-red-950/80 text-red-400 border-red-800'
+                    }`}
+                  >
+                    {isInStock ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    <span>{product.availability}</span>
+                  </span>
+                </div>
               </div>
 
               {/* Title & Review Rating Badge */}
@@ -865,6 +882,26 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Quick Order with Quantity & Delivery Button */}
+            {onQuickOrder && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onClose();
+                  onQuickOrder(product);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-neutral-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
+                id="modal-quick-order-btn"
+              >
+                <Zap className="w-4 h-4 fill-neutral-950 text-neutral-950" />
+                <span>⚡ Quick Order (Select Quantity & Delivery Details)</span>
+              </motion.button>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <motion.a

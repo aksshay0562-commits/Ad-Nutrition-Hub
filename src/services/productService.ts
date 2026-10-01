@@ -510,3 +510,16 @@ export function getYoutubeEmbedUrl(url: string | undefined | null): string | nul
   return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0` : null;
 }
 
+/**
+ * Determines whether a product qualifies for the 'Quick-Buy' badge:
+ * - Must be strictly 'In Stock'
+ * - Must have a high sales count (salesCount >= 200, or featured with high demand)
+ */
+export function isQuickBuyProduct(product?: Product | null): boolean {
+  if (!product) return false;
+  if (product.availability !== 'In Stock') return false;
+
+  const sales = product.salesCount ?? (product.featured ? 220 : 0);
+  return sales >= 200;
+}
+

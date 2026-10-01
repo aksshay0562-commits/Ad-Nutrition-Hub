@@ -1,12 +1,14 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube, QrCode, Flame, Star } from 'lucide-react';
+import { MessageCircle, Eye, Edit, Trash2, CheckCircle2, XCircle, Tag, Youtube, QrCode, Flame, Star, Zap } from 'lucide-react';
 import { Product } from '../types';
-import { buildWhatsAppEnquiryUrl, formatPrice } from '../services/productService';
+import { buildWhatsAppEnquiryUrl, formatPrice, isQuickBuyProduct } from '../services/productService';
+import { triggerHaptic } from '../utils/haptics';
 
 interface ProductCardProps {
   product: Product;
   onViewDetails: (product: Product) => void;
+  onQuickOrder?: (product: Product) => void;
   onShowQR?: (product: Product) => void;
   isAdmin?: boolean;
   onEdit?: (product: Product) => void;
@@ -20,6 +22,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onViewDetails,
+  onQuickOrder,
   onShowQR,
   isAdmin = false,
   onEdit,
@@ -30,6 +33,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   animateEntrance = true
 }) => {
   const isInStock = product.availability === 'In Stock';
+  const isQuickBuy = isQuickBuyProduct(product);
   const whatsappUrl = buildWhatsAppEnquiryUrl(product);
 
   const isNewArrival = Boolean(
@@ -72,21 +76,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Dark subtle gradient at bottom of image for readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
-        {/* Top Badges: Category, Spotlight Badge & Discount */}
+        {/* Top Badges: Category, Quick-Buy, Spotlight Badge & Discount */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="px-2.5 py-1 rounded-md bg-neutral-950/80 backdrop-blur-md border border-neutral-700 text-neutral-200 text-[11px] font-bold tracking-wide">
               {product.category}
             </span>
+
+            {/* Quick-Buy Badge: In-Stock and High Sales Count */}
+            {isQuickBuy && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-neutral-950 text-[10.5px] font-black uppercase tracking-wider shadow-md shadow-black/60 ring-1 ring-amber-300/60"
+                id={`product-quick-buy-badge-${product.id}`}
+                title={`Quick-Buy: In-Stock & High Demand (${product.salesCount || 200}+ sold)`}
+              >
+                <Zap className="w-3 h-3 fill-neutral-950 stroke-neutral-950 animate-pulse" />
+                <span>Quick-Buy</span>
+              </span>
+            )}
+
             {badge ? (
               <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-neutral-950 text-[10.5px] font-black uppercase tracking-wider shadow-md shadow-black/50"
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider shadow-md shadow-black/50 ${
+                  isQuickBuy
+                    ? 'bg-neutral-900/90 text-amber-300 border border-amber-500/40'
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-neutral-950'
+                }`}
                 id={`product-card-badge-${product.id}`}
               >
-                <Flame className="w-3 h-3 fill-neutral-950 stroke-neutral-950" />
+                <Flame className="w-3 h-3 fill-current stroke-current" />
                 <span>{badge}</span>
               </span>
-            ) : isNewArrival ? (
+            ) : isNewArrival && !isQuickBuy ? (
               <span
                 className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-emerald-500 text-neutral-950 text-[10px] font-black uppercase tracking-wider shadow-md shadow-black/40"
                 id={`product-new-badge-${product.id}`}
@@ -104,7 +125,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Stock Status Badge & YouTube Badge at bottom left of image */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 flex-wrap">
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold backdrop-blur-md border ${
               isInStock
@@ -124,6 +145,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </>
             )}
           </span>
+
+          {isQuickBuy && typeof product.salesCount === 'number' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-extrabold text-amber-300 bg-neutral-950/85 border border-amber-500/30 backdrop-blur-md shadow-sm"
+              title={`${product.salesCount} units ordered at AD Nutrition Hub`}
+            >
+              <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>{product.salesCount}+ Sold</span>
+            </span>
+          )}
 
           {product.youtubeUrl && (
             <span 
@@ -245,32 +276,61 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Action Buttons */}
         <div className="space-y-2 mt-auto">
-          <motion.a
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-950 transition-colors cursor-pointer"
-            id={`product-whatsapp-enquiry-${product.id}`}
-          >
-            <MessageCircle className="w-4 h-4 fill-white" />
-            <span>Enquire on WhatsApp</span>
-          </motion.a>
+          {onQuickOrder ? (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+              type="button"
+              onClick={() => {
+                triggerHaptic('medium');
+                onQuickOrder(product);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-xs sm:text-sm shadow-md shadow-emerald-950/40 transition-all cursor-pointer"
+              id={`product-quick-order-${product.id}`}
+            >
+              <Zap className="w-4 h-4 fill-neutral-950 text-neutral-950" />
+              <span>⚡ Quick Order</span>
+            </motion.button>
+          ) : (
+            <motion.a
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-950 transition-colors cursor-pointer"
+              id={`product-whatsapp-enquiry-${product.id}`}
+            >
+              <MessageCircle className="w-4 h-4 fill-white" />
+              <span>Enquire on WhatsApp</span>
+            </motion.a>
+          )}
 
-          <button
-            onClick={() => onViewDetails(product)}
-            className="w-full py-2 px-3 rounded-xl bg-neutral-800/70 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 group/btn cursor-pointer"
-            id={`product-view-details-${product.id}`}
-          >
-            <span>{badge ? 'Shop Now • Details' : 'Full Product Details'}</span>
-            {badge && (
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => onViewDetails(product)}
+              className="py-2 px-2.5 rounded-xl bg-neutral-800/70 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1 group/btn cursor-pointer"
+              id={`product-view-details-${product.id}`}
+            >
+              <span>Details</span>
               <span className="text-amber-400 group-hover/btn:translate-x-0.5 transition-transform font-bold">
                 →
               </span>
-            )}
-          </button>
+            </button>
+
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2 px-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-400 hover:text-emerald-400 font-semibold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+              title="Quick enquiry on WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Enquiry</span>
+            </a>
+          </div>
         </div>
 
         {/* Admin Controls (Only visible when Admin Mode is active) */}

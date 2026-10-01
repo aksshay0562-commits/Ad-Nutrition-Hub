@@ -45,10 +45,12 @@ import { CalculatorStackSection } from './components/CalculatorStackSection';
 import { ThemeModal } from './components/ThemeModal';
 import { NutritionExpertModal } from './components/NutritionExpertModal';
 import { CatalogSortBar, ProductSortOption } from './components/CatalogSortBar';
+import { QuickOrderModal } from './components/QuickOrderModal';
+import { VoiceSearchButton } from './components/VoiceSearchButton';
 import { 
   initAppThemes, 
   applyColorTheme, 
-  applyCustomUniqueColor,
+  applyCustomUniqueColor, 
   applyBgTheme, 
   getSavedColorTheme, 
   getSavedBgTheme,
@@ -62,11 +64,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isVoiceListening, setIsVoiceListening] = useState<boolean>(false);
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [priceSort, setPriceSort] = useState<ProductSortOption>('default');
   
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
@@ -550,6 +554,7 @@ export default function App() {
                   product={product}
                   index={idx}
                   onViewDetails={(p) => setSelectedProduct(p)}
+                  onQuickOrder={(p) => setQuickOrderProduct(p)}
                   onShowQR={(p) => setQrModalProduct(p)}
                   isAdmin={isAdmin}
                   onEdit={(p) => {
@@ -637,30 +642,43 @@ export default function App() {
         {/* Search & Filter Bar */}
         <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800 mb-6 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            {/* Search Input with Camera Scan Icon */}
+            {/* Search Input with Voice Search & Camera Scan Icon */}
             <div className="md:col-span-6 relative">
               <input
                 type="text"
-                placeholder="Search supplements (e.g., Whey Protein, Gainer, Creatine, Fish Oil)..."
+                placeholder={
+                  isVoiceListening 
+                    ? "🎙️ Listening... Speak supplement name now" 
+                    : "Search supplements (e.g., Whey Protein, Gainer, Creatine, Fish Oil)..."
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-16 py-2.5 rounded-xl bg-neutral-950 border border-neutral-700/80 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 placeholder-neutral-500"
+                className={`w-full pl-10 pr-24 py-2.5 rounded-xl bg-neutral-950 border text-white text-xs sm:text-sm focus:outline-none placeholder-neutral-500 transition-all ${
+                  isVoiceListening 
+                    ? 'border-rose-500/80 ring-2 ring-rose-500/30' 
+                    : 'border-neutral-700/80 focus:border-amber-500'
+                }`}
                 id="catalog-search-input"
               />
-              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
+              <Search className={`w-4 h-4 absolute left-3.5 top-3 transition-colors ${isVoiceListening ? 'text-rose-400' : 'text-neutral-400'}`} />
               <div className="absolute right-2.5 top-2 flex items-center gap-1.5">
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="text-xs text-neutral-400 hover:text-white px-1.5 py-0.5"
+                    className="text-xs text-neutral-400 hover:text-white px-1.5 py-0.5 cursor-pointer"
                   >
                     Clear
                   </button>
                 )}
+                {/* Voice-to-Text Search Button */}
+                <VoiceSearchButton
+                  onTranscript={(transcript) => setSearchQuery(transcript)}
+                  onListeningChange={(listening) => setIsVoiceListening(listening)}
+                />
                 <button
                   type="button"
                   onClick={handleOpenScanner}
-                  className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 border border-neutral-800 transition-colors"
+                  className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 border border-neutral-800 transition-colors cursor-pointer"
                   title="Scan Product QR Code or Barcode"
                   id="catalog-search-scan-btn"
                 >
@@ -839,6 +857,7 @@ export default function App() {
                   index={idx}
                   badge={dynamicBadge}
                   onViewDetails={(p) => setSelectedProduct(p)}
+                  onQuickOrder={(p) => setQuickOrderProduct(p)}
                   onShowQR={(p) => setQrModalProduct(p)}
                   isAdmin={isAdmin}
                   onEdit={(p) => {
@@ -1015,6 +1034,7 @@ export default function App() {
       <ProductDetailsModal
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        onQuickOrder={(p) => setQuickOrderProduct(p)}
         isAdmin={isAdmin}
         onShowQR={(p) => setQrModalProduct(p)}
         onEdit={(p) => {
@@ -1110,6 +1130,17 @@ export default function App() {
         isOpen={isExpertModalOpen}
         onClose={() => setIsExpertModalOpen(false)}
         initialGoal={expertModalGoal}
+      />
+
+      {/* Quick Order with Quantity & Delivery Modal */}
+      <QuickOrderModal
+        product={quickOrderProduct}
+        isOpen={Boolean(quickOrderProduct)}
+        onClose={() => setQuickOrderProduct(null)}
+        onOpenDetails={(p) => {
+          setQuickOrderProduct(null);
+          setSelectedProduct(p);
+        }}
       />
     </div>
   );
