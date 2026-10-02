@@ -21,7 +21,18 @@ import {
   CheckCircle2,
   Palette,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Package,
+  Truck,
+  Clock,
+  History,
+  Trash2,
+  ArrowUpRight,
+  RotateCcw,
+  ChevronDown,
+  Send,
+  Search,
+  FileSpreadsheet
 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { 
@@ -32,6 +43,19 @@ import {
   buildWhatsAppShareUrl 
 } from '../utils/whatsapp';
 import { triggerHaptic } from '../utils/haptics';
+import { 
+  OrderTrackingHistoryItem, 
+  OrderTrackingStatus, 
+  ORDER_STATUS_CONFIG, 
+  ALL_ORDER_STATUSES,
+  getOrderTrackingHistory, 
+  recordOrderSearch, 
+  updateOrderTrackingStatus, 
+  removeOrderTrackingItem, 
+  clearOrderTrackingHistory, 
+  formatOrderRelativeTime,
+  exportOrderHistoryToCSV
+} from '../utils/orderTracking';
 import { 
   getQrBorderGradientConfig, 
   getSavedColorTheme, 
@@ -60,6 +84,130 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   const [pressProgress, setPressProgress] = useState(0);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+
+  // Order Tracking feature states
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [trackerTab, setTrackerTab] = useState<'search' | 'history'>('search');
+  const [orderIdInput, setOrderIdInput] = useState('');
+  const [orderIdError, setOrderIdError] = useState<string | null>(null);
+  const [trackingHistory, setTrackingHistory] = useState<OrderTrackingHistoryItem[]>([]);
+  const [showTrackingPreview, setShowTrackingPreview] = useState(false);
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'All' | OrderTrackingStatus>('All');
+
+  // Compute status counts for the quick-filter bar
+  const statusCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { All: trackingHistory.length };
+    trackingHistory.forEach((item) => {
+      counts[item.status] = (counts[item.status] || 0) + 1;
+    });
+    return counts;
+  }, [trackingHistory]);
+
+  // Statuses that currently exist in the user's history
+  const availableFilterStatuses = React.useMemo(() => {
+    const present = new Set(trackingHistory.map((item) => item.status));
+    return ALL_ORDER_STATUSES.filter((status) => present.has(status));
+  }, [trackingHistory]);
+
+  // Filtered history based on quick-filter toggle bar
+  const filteredHistory = React.useMemo(() => {
+    if (historyStatusFilter === 'All') return trackingHistory;
+    return trackingHistory.filter((item) => item.status === historyStatusFilter);
+  }, [trackingHistory, historyStatusFilter]);
+
+  const [csvExportSuccess, setCsvExportSuccess] = useState(false);
+
+  // Export current filtered history into Excel-compatible CSV file
+  const handleExportCSV = () => {
+    if (filteredHistory.length === 0) {
+      triggerHaptic('error');
+      return;
+    }
+
+    triggerHaptic('success');
+    const success = exportOrderHistoryToCSV(filteredHistory, historyStatusFilter);
+    if (success) {
+      setCsvExportSuccess(true);
+      setTimeout(() => setCsvExportSuccess(false), 2500);
+    }
+  };
+
+  // Load order tracking history from browser localStorage on mount and when modal opens
+  const refreshHistory = () => {
+    const list = getOrderTrackingHistory();
+    setTrackingHistory(list);
+    if (list.length > 0 && !orderIdInput) {
+      setOrderIdInput(list[0].orderId);
+    }
+  };
+
+  useEffect(() => {
+    refreshHistory();
+  }, []);
+
+  useEffect(() => {
+    if (showOrderTracker) {
+      refreshHistory();
+    }
+  }, [showOrderTracker]);
+
+  const generateTrackingMessage = (orderId: string): string => {
+    const trimmed = orderId.trim();
+    return `Namaste AD Nutrition Hub Israna! 🙏\n\n📦 *Order Status Tracking Enquiry*\n• Order Reference ID: *${trimmed}*\n• Routing Line: Orders & Dispatch Desk (Line 1: 70159 59517)\n• Store: Mandi Mor, Israna, Panipat (Haryana)\n\nPlease check the current status of my order:\n1. Has this order been confirmed and packed at the store?\n2. What is the estimated dispatch or in-store pickup readiness time?\n\nThank you!`;
+  };
+
+  const executeTrackOrderId = (idToTrack: string, statusHint?: OrderTrackingStatus) => {
+    const trimmed = idToTrack.trim();
+    if (!trimmed) {
+      triggerHaptic('error');
+      setOrderIdError('Please enter your Order ID or mobile number');
+      return;
+    }
+
+    setOrderIdError(null);
+    triggerHaptic('success');
+
+    // Persist into localStorage history (stores up to last 5 searched order IDs with status)
+    const updated = recordOrderSearch(trimmed, statusHint || 'Enquiry Sent');
+    setTrackingHistory(updated);
+
+    const message = generateTrackingMessage(trimmed);
+    const targetPhone = STORE_INFO.rawPhone1; // Line 1: Orders line
+    const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleTrackOrder = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    executeTrackOrderId(orderIdInput);
+  };
+
+  const handleStatusChange = (orderId: string, newStatus: OrderTrackingStatus) => {
+    triggerHaptic('light');
+    const updated = updateOrderTrackingStatus(orderId, newStatus);
+    setTrackingHistory(updated);
+    setEditingStatusId(null);
+  };
+
+  const handleRemoveHistoryItem = (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic('light');
+    const updated = removeOrderTrackingItem(orderId);
+    setTrackingHistory(updated);
+    if (orderIdInput.toLowerCase() === orderId.toLowerCase()) {
+      setOrderIdInput(updated[0]?.orderId || '');
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    triggerHaptic('medium');
+    clearOrderTrackingHistory();
+    setTrackingHistory([]);
+    setOrderIdInput('');
+    setTrackerTab('search');
+  };
+
   const [queryType, setQueryType] = useState<WhatsAppQueryType>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ad_wa_preferred_query');
@@ -834,6 +982,27 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 </button>
               )}
 
+              {/* Order Tracking Direct Shortcut */}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setShowOrderTracker(true);
+                  setShowSettingsMenu(false);
+                }}
+                className="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/15 hover:from-amber-500/25 hover:to-yellow-500/25 border border-amber-500/40 text-left transition-all cursor-pointer flex items-center justify-between group"
+                id="wa-menu-track-order-btn"
+              >
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <div>
+                    <p className="text-xs font-bold text-white">Track Order Status</p>
+                    <p className="text-[10px] text-neutral-300">Enter Order ID to enquire directly on Orders Line 1</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+
               {/* Message Template Preview Banner */}
               <div className="p-2.5 rounded-xl bg-neutral-950/90 border border-neutral-800/80 space-y-1">
                 <div className="flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
@@ -850,8 +1019,602 @@ Visit the online catalog or walk in to check batch verification and current in-s
           )}
         </AnimatePresence>
 
+        {/* Order Tracking Modal / Popover */}
+        <AnimatePresence>
+          {showOrderTracker && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 8, transition: { duration: 0.15 } }}
+              className="bg-neutral-900/95 backdrop-blur-md border border-neutral-700/80 rounded-2xl shadow-2xl p-4 w-80 sm:w-92 space-y-3.5 origin-bottom-right"
+              id="whatsapp-order-tracker-panel"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Order Tracking</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-400 font-bold border border-amber-400/30">
+                        Line 1 Orders
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-neutral-400">
+                      Pre-fills WhatsApp status query to Orders line
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOrderTracker(false)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
+                  aria-label="Close order tracking"
+                  id="close-order-tracker-btn"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Segmented Tab Navigation: Search vs History */}
+              <div className="grid grid-cols-2 p-1 rounded-xl bg-neutral-950 border border-neutral-800 text-xs font-bold relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setTrackerTab('search');
+                  }}
+                  className={`relative z-10 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    trackerTab === 'search'
+                      ? 'text-neutral-950 font-black'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  id="order-tracker-tab-search"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Search</span>
+                  {trackerTab === 'search' && (
+                    <motion.div
+                      layoutId="activeTrackerTabPill"
+                      className="absolute inset-0 bg-amber-400 rounded-lg -z-10 shadow-sm"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setTrackerTab('history');
+                    refreshHistory();
+                  }}
+                  className={`relative z-10 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    trackerTab === 'history'
+                      ? 'text-neutral-950 font-black'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  id="order-tracker-tab-history"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>History ({trackingHistory.length}/5)</span>
+                  {trackerTab === 'history' && (
+                    <motion.div
+                      layoutId="activeTrackerTabPill"
+                      className="absolute inset-0 bg-amber-400 rounded-lg -z-10 shadow-sm"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
+              </div>
+
+              {/* Tab 1: Search Form View */}
+              {trackerTab === 'search' ? (
+                <form onSubmit={handleTrackOrder} className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                      Enter Order ID or Contact Number:
+                    </label>
+                    <div className="relative">
+                      <Package className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={orderIdInput}
+                        onChange={(e) => {
+                          setOrderIdInput(e.target.value);
+                          if (orderIdError) setOrderIdError(null);
+                        }}
+                        placeholder="e.g. AD-10492 or 9812345678"
+                        className={`w-full pl-9 pr-8 py-2 rounded-xl bg-neutral-950 border text-xs text-white placeholder-neutral-500 focus:outline-none transition-colors ${
+                          orderIdError ? 'border-red-500 ring-1 ring-red-500/40' : 'border-neutral-700/80 focus:border-amber-400'
+                        }`}
+                        id="order-tracker-input"
+                      />
+                      {orderIdInput && (
+                        <button
+                          type="button"
+                          onClick={() => setOrderIdInput('')}
+                          className="absolute right-2.5 top-2.5 text-neutral-400 hover:text-white cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {orderIdError && (
+                      <p className="text-[10px] text-red-400 mt-1 font-semibold">{orderIdError}</p>
+                    )}
+                  </div>
+
+                  {/* Recent Order History Chips */}
+                  {trackingHistory.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                        <span className="flex items-center gap-1">
+                          <History className="w-3 h-3 text-neutral-500" />
+                          <span>Recent Searches ({trackingHistory.length}/5):</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setTrackerTab('history')}
+                          className="text-amber-400 hover:text-amber-300 transition-colors normal-case cursor-pointer font-semibold"
+                        >
+                          View Full History →
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {trackingHistory.map((item) => {
+                          const statusConf = ORDER_STATUS_CONFIG[item.status];
+                          const isSelected = orderIdInput.toLowerCase() === item.orderId.toLowerCase();
+                          return (
+                            <button
+                              key={item.orderId}
+                              type="button"
+                              onClick={() => {
+                                triggerHaptic('light');
+                                setOrderIdInput(item.orderId);
+                                if (orderIdError) setOrderIdError(null);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all cursor-pointer border flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-amber-400 text-neutral-950 border-amber-400 font-bold shadow-sm'
+                                  : 'bg-neutral-950 text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                              }`}
+                              title={`Status: ${item.status} (${formatOrderRelativeTime(item.searchedAt)})`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-neutral-950' : statusConf.dot}`} />
+                              <span>#{item.orderId}</span>
+                              <span className={`text-[9px] font-sans ${isSelected ? 'text-neutral-950/80 font-bold' : statusConf.text}`}>
+                                • {item.status.split(' ')[0]}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Routed Line Clarification */}
+                  <div className="p-2.5 rounded-xl bg-neutral-950/70 border border-neutral-800/80 text-[10.5px] text-neutral-400 space-y-1">
+                    <div className="flex items-center justify-between font-bold text-neutral-300">
+                      <span>Target WhatsApp Desk:</span>
+                      <span className="text-amber-400 font-bold">Line 1 ({STORE_INFO.phone})</span>
+                    </div>
+                    <p className="leading-relaxed">
+                      Direct line to Akshay Malik & Israna store packing staff for real-time dispatch and stock status.
+                    </p>
+                  </div>
+
+                  {/* Collapsible WhatsApp Message Preview */}
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowTrackingPreview(!showTrackingPreview)}
+                      className="w-full flex items-center justify-between text-[10.5px] text-neutral-400 hover:text-white py-0.5 cursor-pointer"
+                    >
+                      <span>Preview Pre-filled WhatsApp Message</span>
+                      <span className="text-[11px] font-bold">{showTrackingPreview ? '▲' : '▼'}</span>
+                    </button>
+                    {showTrackingPreview && (
+                      <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-[10px] font-mono text-neutral-300 whitespace-pre-wrap leading-relaxed shadow-inner max-h-32 overflow-y-auto">
+                        {generateTrackingMessage(orderIdInput || 'YOUR_ORDER_ID')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2 pt-1">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="submit"
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
+                      id="submit-order-tracking-btn"
+                    >
+                      <MessageCircle className="w-4 h-4 fill-neutral-950 text-neutral-950" />
+                      <span>Send Tracking Query to Orders Line</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-neutral-950" />
+                    </motion.button>
+
+                    <a
+                      href={`tel:${STORE_INFO.phone}`}
+                      className="w-full py-2 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <span>Urgent? Call Orders Desk: {STORE_INFO.phone}</span>
+                    </a>
+                  </div>
+                </form>
+              ) : (
+                /* Tab 2: Persistent History View (Displays Last 5 Searched Orders with Distinct Backgrounds & Quick-Filter) */
+                <div className="space-y-3" id="order-tracking-history-view">
+                  {/* History View Sub-header with Quick CSV Export */}
+                  <div className="flex items-center justify-between text-[11px] font-bold text-neutral-300 pb-1 border-b border-neutral-800/80">
+                    <span className="flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Last 5 Searched Orders</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {trackingHistory.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleExportCSV}
+                          disabled={filteredHistory.length === 0}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                            csvExportSuccess
+                              ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/50'
+                              : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border-neutral-750 hover:border-emerald-500/40'
+                          } disabled:opacity-40 disabled:cursor-not-allowed`}
+                          title="Export current filtered history to CSV (Excel compatible)"
+                          id="header-export-order-history-csv-btn"
+                        >
+                          {csvExportSuccess ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span>Exported!</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileSpreadsheet className="w-3 h-3 text-emerald-400" />
+                              <span>CSV</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <span className="text-[10px] text-neutral-400 font-medium">
+                        Local storage
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick-Filter Toggle Bar */}
+                  {trackingHistory.length > 0 && (
+                    <div className="space-y-1.5 pt-0.5" id="order-history-filter-bar">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                        <span>Filter by Status:</span>
+                        {historyStatusFilter !== 'All' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic('light');
+                              setHistoryStatusFilter('All');
+                            }}
+                            className="text-amber-400 hover:text-amber-300 font-semibold normal-case cursor-pointer flex items-center gap-1"
+                          >
+                            <RotateCcw className="w-2.5 h-2.5" />
+                            <span>Reset ({filteredHistory.length}/{trackingHistory.length})</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Filter Pills Scrollable Row */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none select-none">
+                        {/* 'All' Filter Pill */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setHistoryStatusFilter('All');
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                            historyStatusFilter === 'All'
+                              ? 'bg-amber-400 text-neutral-950 shadow-sm shadow-amber-950/40 ring-1 ring-amber-300 font-black'
+                              : 'bg-neutral-950/80 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800'
+                          }`}
+                          id="order-filter-all-btn"
+                        >
+                          <span>All</span>
+                          <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${
+                            historyStatusFilter === 'All' ? 'bg-neutral-950/20 text-neutral-950 font-black' : 'bg-neutral-900 text-neutral-400'
+                          }`}>
+                            {trackingHistory.length}
+                          </span>
+                        </button>
+
+                        {/* Available status filter pills */}
+                        {availableFilterStatuses.map((statusKey) => {
+                          const conf = ORDER_STATUS_CONFIG[statusKey];
+                          const count = statusCounts[statusKey] || 0;
+                          const isActive = historyStatusFilter === statusKey;
+
+                          return (
+                            <button
+                              key={statusKey}
+                              type="button"
+                              onClick={() => {
+                                triggerHaptic('light');
+                                setHistoryStatusFilter(isActive ? 'All' : statusKey);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border ${
+                                isActive
+                                  ? `${conf.bg} ${conf.text} ${conf.border} ring-1 ring-current shadow-sm`
+                                  : 'bg-neutral-950/80 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border-neutral-800'
+                              }`}
+                              id={`order-filter-${statusKey.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-btn`}
+                            >
+                              <span>{conf.icon}</span>
+                              <span>{conf.shortLabel}</span>
+                              <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${isActive ? 'bg-neutral-950/40' : 'bg-neutral-900 text-neutral-400'}`}>
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty States */}
+                  {trackingHistory.length === 0 ? (
+                    <div className="py-8 text-center space-y-2.5 bg-neutral-950/50 rounded-xl border border-neutral-800/60 p-4">
+                      <div className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-neutral-500">
+                        <History className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-white">No Order History Yet</p>
+                      <p className="text-[11px] text-neutral-400 max-w-xs mx-auto">
+                        Search for an order ID or place a quick order to see its live tracking status saved here.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setTrackerTab('search')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Track an Order Now</span>
+                      </button>
+                    </div>
+                  ) : filteredHistory.length === 0 ? (
+                    <div className="py-6 text-center space-y-2 bg-neutral-950/40 rounded-xl border border-neutral-800/60 p-4">
+                      <p className="text-xs text-neutral-400">
+                        No orders matching status <span className="text-white font-bold">"{historyStatusFilter}"</span>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setHistoryStatusFilter('All');
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 font-semibold transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Show All Orders ({trackingHistory.length})</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* History Cards List with Distinct Status Background Colors */
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-0.5" id="order-history-items-list">
+                      {filteredHistory.map((item) => {
+                        const statusConf = ORDER_STATUS_CONFIG[item.status] || ORDER_STATUS_CONFIG['Enquiry Sent'];
+                        const isEditingStatus = editingStatusId === item.orderId;
+
+                        return (
+                          <div
+                            key={item.orderId}
+                            className={`p-3 rounded-2xl ${statusConf.cardBg} border ${statusConf.cardBorder} space-y-2.5 transition-all shadow-md relative group`}
+                            id={`history-order-card-${item.orderId}`}
+                          >
+                            {/* Card Top: Order ID, Timestamp & Delete button */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono font-bold text-xs ${statusConf.cardAccent}`}>
+                                  #{item.orderId}
+                                </span>
+                                <span className="text-[10px] text-neutral-400 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-neutral-500" />
+                                  <span>{formatOrderRelativeTime(item.searchedAt)}</span>
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRemoveHistoryItem(item.orderId, e)}
+                                  className="p-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-900/80 transition-colors cursor-pointer"
+                                  title="Remove from history"
+                                  aria-label={`Remove order ${item.orderId} from history`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Product Hint if available */}
+                            {item.productHint && (
+                              <div className="text-[10.5px] text-neutral-200 font-medium truncate flex items-center gap-1.5 bg-neutral-950/60 px-2.5 py-1 rounded-lg border border-neutral-800/80">
+                                <span>📦</span>
+                                <span className="truncate">{item.productHint}</span>
+                              </div>
+                            )}
+
+                            {/* Status Section with Interactive Dropdown Picker */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                                <span>Status:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingStatusId(isEditingStatus ? null : item.orderId)}
+                                  className="text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                                >
+                                  <span>{isEditingStatus ? 'Done' : 'Change Status'}</span>
+                                  <ChevronDown className={`w-3 h-3 transition-transform ${isEditingStatus ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
+
+                              {/* Current Status Badge with distinct background */}
+                              <div
+                                onClick={() => setEditingStatusId(isEditingStatus ? null : item.orderId)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10.5px] font-bold border transition-all cursor-pointer shadow-sm ${statusConf.bg} ${statusConf.text} ${statusConf.border}`}
+                                title="Click to update status"
+                              >
+                                <span className={`w-2 h-2 rounded-full ${statusConf.dot} animate-pulse`} />
+                                <span>{statusConf.icon} {statusConf.label}</span>
+                              </div>
+
+                              {/* Interactive Inline Status Picker Menu */}
+                              <AnimatePresence>
+                                {isEditingStatus && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-750 space-y-1 mt-1 overflow-hidden shadow-xl"
+                                  >
+                                    <span className="text-[9.5px] font-bold text-neutral-400 uppercase tracking-wider block">
+                                      Select Updated Status from Store:
+                                    </span>
+                                    <div className="grid grid-cols-1 gap-1">
+                                      {ALL_ORDER_STATUSES.map((statusOption) => {
+                                        const optConf = ORDER_STATUS_CONFIG[statusOption];
+                                        const isCurrent = item.status === statusOption;
+
+                                        return (
+                                          <button
+                                            key={statusOption}
+                                            type="button"
+                                            onClick={() => handleStatusChange(item.orderId, statusOption)}
+                                            className={`text-left px-2 py-1.5 rounded-lg text-[10.5px] font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                                              isCurrent
+                                                ? 'bg-neutral-800 text-white font-bold ring-1 ring-amber-400/40'
+                                                : 'text-neutral-300 hover:bg-neutral-800/80 hover:text-white'
+                                            }`}
+                                          >
+                                            <span className="flex items-center gap-1.5">
+                                              <span>{optConf.icon}</span>
+                                              <span>{statusOption}</span>
+                                            </span>
+                                            {isCurrent && (
+                                              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                            )}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+
+                            {/* Card Actions: Re-check on WhatsApp & Fill in Search */}
+                            <div className="flex items-center gap-1.5 pt-1.5 border-t border-neutral-900/80">
+                              <button
+                                type="button"
+                                onClick={() => executeTrackOrderId(item.orderId, item.status)}
+                                className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-neutral-950 text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                title="Send live status query to Line 1 Orders on WhatsApp"
+                              >
+                                <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                                <span>Re-check on WhatsApp</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('light');
+                                  setOrderIdInput(item.orderId);
+                                  setTrackerTab('search');
+                                }}
+                                className="py-1.5 px-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white text-[10.5px] font-semibold border border-neutral-800 transition-colors cursor-pointer"
+                                title="Open in search tab"
+                              >
+                                <span>Edit</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* History Footer Actions with CSV Download and Clear History */}
+                  {trackingHistory.length > 0 && (
+                    <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between gap-2 text-[10.5px]">
+                      <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        disabled={filteredHistory.length === 0}
+                        className={`inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-[10.5px] font-bold transition-all cursor-pointer border ${
+                          csvExportSuccess
+                            ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-sm'
+                            : 'bg-neutral-900 hover:bg-neutral-850 text-neutral-200 hover:text-white border-neutral-750 hover:border-emerald-500/50 shadow-sm'
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                        id="export-order-history-csv-btn"
+                        title="Download CSV spreadsheet of current filtered orders for Excel audit"
+                      >
+                        {csvExportSuccess ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>CSV Downloaded!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Export CSV ({filteredHistory.length})</span>
+                          </>
+                        )}
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleClearAllHistory}
+                          className="text-red-400 hover:text-red-300 hover:underline flex items-center gap-1 cursor-pointer font-medium text-[10.5px]"
+                          id="clear-order-tracking-history-btn"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Clear History</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main WhatsApp & Quick Action Buttons */}
         <div className="relative flex items-center gap-2">
+          {/* Order Tracking Button */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.90 }}
+            onClick={() => {
+              triggerHaptic('light');
+              setShowOrderTracker(!showOrderTracker);
+              setShowSettingsMenu(false);
+            }}
+            className={`p-2.5 rounded-full border shadow-xl flex items-center justify-center transition-colors cursor-pointer relative ${
+              showOrderTracker 
+                ? 'bg-amber-400 text-neutral-950 border-amber-300 shadow-amber-500/20' 
+                : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-700 text-neutral-300 hover:text-amber-400'
+            }`}
+            title="Track Order: Enter Order ID to get status on WhatsApp (Orders line)"
+            id="track-order-floating-btn"
+            aria-label="Track Order Status"
+          >
+            <Truck className="w-4 h-4" />
+          </motion.button>
+
           {/* WhatsApp Settings & Line Switcher Toggle Button */}
           <motion.button
             whileHover={{ scale: 1.08 }}

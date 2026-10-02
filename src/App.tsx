@@ -36,6 +36,7 @@ import { ProductCard } from './components/ProductCard';
 import { ProductDetailsModal } from './components/ProductDetailsModal';
 import { AdminPanel } from './components/AdminPanel';
 import { ContactSection } from './components/ContactSection';
+import { SocialCommunitySection } from './components/SocialCommunitySection';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
@@ -1005,6 +1006,9 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      {/* Fitness Community on Instagram & Facebook */}
+      <SocialCommunitySection />
 
       {/* Shop Location & Map Section */}
       <ContactSection />

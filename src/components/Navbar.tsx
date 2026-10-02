@@ -35,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'products', label: 'All Supplements' },
     { id: 'categories', label: 'Categories' },
     { id: 'calculator-stack', label: 'Calculator & Stacks' },
+    { id: 'community', label: 'Community' },
     { id: 'location', label: 'Shop Location' },
     { id: 'about', label: 'About Store' },
   ];

@@ -24,6 +24,7 @@ import { Product, STORE_INFO } from '../types';
 import { formatPrice } from '../services/productService';
 import { buildWhatsAppUrl, WhatsAppLine } from '../utils/whatsapp';
 import { triggerHaptic } from '../utils/haptics';
+import { recordOrderSearch } from '../utils/orderTracking';
 
 export interface QuickOrderModalProps {
   product: Product | null;
@@ -62,6 +63,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('upi');
   const [specialNotes, setSpecialNotes] = useState<string>('');
   const [selectedLine, setSelectedLine] = useState<WhatsAppLine>('line1');
+  const [orderRefId, setOrderRefId] = useState<string>(() => `AD-${Math.floor(10000 + Math.random() * 90000)}`);
 
   // UI state
   const [copied, setCopied] = useState<boolean>(false);
@@ -91,6 +93,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       setQuantity(1);
       setFormErrors({});
       setCopied(false);
+      setOrderRefId(`AD-${Math.floor(10000 + Math.random() * 90000)}`);
     }
   }, [isOpen, product]);
 
@@ -145,6 +148,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
 
     return `*AD NUTRITION HUB ISRANA — QUICK ORDER REQUEST* 🛒
 📍 Mandi Mor, Israna (Panipat, Haryana)
+🔖 Order Ref: *#${orderRefId}*
 
 📦 *Product Ordered:*
 • Item: *${product.name}*
@@ -159,7 +163,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
 • Payment Mode: ${paymentText}
 
 Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp par bill / delivery confirmation share karein.${notesText}`;
-  }, [product, quantity, customerName, customerPhone, fulfillment, address, paymentPreference, specialNotes, calculations]);
+  }, [product, quantity, customerName, customerPhone, fulfillment, address, paymentPreference, specialNotes, calculations, orderRefId]);
 
   const validateForm = (): boolean => {
     const errors: { name?: string; phone?: string; address?: string } = {};
@@ -192,6 +196,11 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
 
     triggerHaptic('success');
     saveCustomerDetails();
+
+    // Save order reference ID for 1-tap tracking in Floating WhatsApp history
+    try {
+      recordOrderSearch(orderRefId, 'Order Confirmed', product.name);
+    } catch {}
 
     const targetPhone = selectedLine === 'line2' ? STORE_INFO.rawPhone2 : STORE_INFO.rawPhone1;
     const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(compiledOrderMessage)}`;
