@@ -18,8 +18,10 @@ import {
   ShieldCheck, 
   ExternalLink,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  QrCode
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Product, STORE_INFO } from '../types';
 import { formatPrice } from '../services/productService';
 import { buildWhatsAppUrl, WhatsAppLine } from '../utils/whatsapp';
@@ -31,6 +33,7 @@ export interface QuickOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenDetails?: (product: Product) => void;
+  onOpenPaymentQR?: (amount?: number) => void;
 }
 
 export type OrderFulfillment = 'pickup' | 'delivery';
@@ -51,6 +54,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
   isOpen,
   onClose,
   onOpenDetails,
+  onOpenPaymentQR,
 }) => {
   // Order quantity
   const [quantity, setQuantity] = useState<number>(1);
@@ -69,6 +73,8 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
+  const [orderUpiQrUrl, setOrderUpiQrUrl] = useState<string>('');
+  const [copiedUpiInline, setCopiedUpiInline] = useState<boolean>(false);
 
   // Restore saved customer profile from localStorage on mount
   useEffect(() => {
@@ -117,6 +123,28 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       discountPercent,
     };
   }, [product, quantity]);
+
+  // Generate real-time UPI Payment QR code for order subtotal
+  useEffect(() => {
+    if (!isOpen || !product || calculations.subtotal <= 0) {
+      setOrderUpiQrUrl('');
+      return;
+    }
+
+    const upiUri = `upi://pay?pa=${STORE_INFO.payment.upiId}&pn=Sumit&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product.name.slice(0, 20)}`)}`;
+
+    QRCode.toDataURL(upiUri, {
+      width: 256,
+      margin: 1,
+      color: {
+        dark: '#0a0a0a',
+        light: '#ffffff'
+      },
+      errorCorrectionLevel: 'M'
+    })
+      .then(setOrderUpiQrUrl)
+      .catch(console.error);
+  }, [isOpen, product, calculations.subtotal]);
 
   // Save customer details to localStorage for future frictionless orders
   const saveCustomerDetails = () => {
@@ -572,12 +600,13 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
                     }}
                     className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentPreference === 'upi'
-                        ? 'bg-neutral-800 text-white border-emerald-500/80 shadow-sm'
+                        ? 'bg-neutral-800 text-white border-emerald-500/80 shadow-sm ring-1 ring-emerald-500/40'
                         : 'bg-neutral-950/60 text-neutral-400 border-neutral-800 hover:text-white'
                     }`}
+                    id="quick-order-payment-upi-btn"
                   >
                     <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>UPI / GPay / PhonePe</span>
+                    <span>UPI / QR Code</span>
                   </button>
 
                   <button
@@ -588,14 +617,94 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
                     }}
                     className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentPreference === 'cod'
-                        ? 'bg-neutral-800 text-white border-amber-500/80 shadow-sm'
+                        ? 'bg-neutral-800 text-white border-amber-500/80 shadow-sm ring-1 ring-amber-500/40'
                         : 'bg-neutral-950/60 text-neutral-400 border-neutral-800 hover:text-white'
                     }`}
+                    id="quick-order-payment-cod-btn"
                   >
                     <Banknote className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Cash on Delivery / Pickup</span>
+                    <span>Cash on Delivery</span>
                   </button>
                 </div>
+
+                {/* Inline UPI Payment QR Box when UPI is chosen */}
+                {paymentPreference === 'upi' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-neutral-900 to-neutral-950 border border-emerald-500/40 space-y-3 mt-2 shadow-sm"
+                    id="quick-order-upi-qr-card"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="font-bold text-white">Store UPI Payment QR</span>
+                      </div>
+                      <span className="text-[10.5px] text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 font-mono">
+                        Pay ₹{calculations.subtotal}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3.5 bg-white text-neutral-900 p-3.5 rounded-xl border border-neutral-200">
+                      {/* Mini QR Code */}
+                      <div className="w-28 h-28 shrink-0 bg-white rounded-lg p-1 border border-neutral-200 flex items-center justify-center relative shadow-sm">
+                        {orderUpiQrUrl ? (
+                          <img 
+                            src={orderUpiQrUrl} 
+                            alt="Order UPI Payment QR" 
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#ED1C24] flex items-center justify-center text-[8px] font-black text-[#003366] shadow">
+                          ∞
+                        </div>
+                      </div>
+
+                      {/* Payee Info & Actions */}
+                      <div className="space-y-1.5 text-center sm:text-left min-w-0 flex-1">
+                        <div className="text-xs font-bold text-neutral-900">
+                          {STORE_INFO.payment.payeeName} • <span className="text-neutral-500 font-normal">{STORE_INFO.payment.accountType} {STORE_INFO.payment.accountMasked}</span>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-100 border border-neutral-300 text-xs font-mono font-bold text-neutral-900">
+                          <span>{STORE_INFO.payment.upiId}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic('success');
+                              navigator.clipboard.writeText(STORE_INFO.payment.upiId);
+                              setCopiedUpiInline(true);
+                              setTimeout(() => setCopiedUpiInline(false), 2000);
+                            }}
+                            className="text-neutral-500 hover:text-black cursor-pointer"
+                            title="Copy UPI ID"
+                          >
+                            {copiedUpiInline ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 justify-center sm:justify-start">
+                          {onOpenPaymentQR && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenPaymentQR(calculations.subtotal)}
+                              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>Enlarge QR Code</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          )}
+                          <a
+                            href={`upi://pay?pa=${STORE_INFO.payment.upiId}&pn=Sumit&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product?.name?.slice(0, 20) || 'Order'}`)}`}
+                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
+                          >
+                            Pay in UPI App
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Optional Special Notes / Flavour request */}

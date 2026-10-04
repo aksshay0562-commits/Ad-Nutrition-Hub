@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone, Eye, Users } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone, Eye, Users, QrCode } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { NutritionVideoBackground } from './NutritionVideoBackground';
@@ -15,6 +15,7 @@ interface HeroProps {
   onOpenExpertAdvice?: () => void;
   visitStats?: SiteVisitStats;
   onOpenVisitStats?: () => void;
+  onOpenPaymentQR?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -25,7 +26,8 @@ export const Hero: React.FC<HeroProps> = ({
   onCalculatorClick,
   onOpenExpertAdvice,
   visitStats,
-  onOpenVisitStats
+  onOpenVisitStats,
+  onOpenPaymentQR
 }) => {
   const quickCategories = [
     { label: 'Whey Protein', icon: '🥛', category: 'Whey Protein' },
@@ -158,6 +160,22 @@ export const Hero: React.FC<HeroProps> = ({
                 <MapPin className="w-4 h-4 text-amber-400" />
                 <span>Visit Store</span>
               </button>
+
+              {onOpenPaymentQR && (
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.94, y: 1 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  type="button"
+                  onClick={onOpenPaymentQR}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-emerald-500/40 text-emerald-400 font-bold text-sm sm:text-base shadow-lg transition-colors cursor-pointer"
+                  id="hero-payment-qr-btn"
+                  title="Official Store UPI Payment QR Code (sumit6269@kotak)"
+                >
+                  <QrCode className="w-4 h-4 text-emerald-400" />
+                  <span>UPI Pay QR</span>
+                </motion.button>
+              )}
 
               {onOpenAndroidModal && (
                 <PWAInstallButton onOpenModal={onOpenAndroidModal} variant="hero" />

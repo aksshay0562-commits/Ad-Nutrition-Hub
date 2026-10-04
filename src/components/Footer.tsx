@@ -14,7 +14,8 @@ import {
   Users,
   Activity,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  QrCode
 } from 'lucide-react';
 import { STORE_INFO, CATEGORIES } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -28,6 +29,7 @@ interface FooterProps {
   onOpenThemeModal?: () => void;
   visitStats?: SiteVisitStats;
   onOpenVisitStats?: () => void;
+  onOpenPaymentQR?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -37,7 +39,8 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAndroidModal,
   onOpenThemeModal,
   visitStats,
-  onOpenVisitStats
+  onOpenVisitStats,
+  onOpenPaymentQR
 }) => {
   return (
     <footer id="app-footer" className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
@@ -203,6 +206,30 @@ export const Footer: React.FC<FooterProps> = ({
                   </div>
                 </div>
               </a>
+
+              {/* Store UPI Payment QR Button */}
+              {onOpenPaymentQR && (
+                <button
+                  type="button"
+                  onClick={onOpenPaymentQR}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-neutral-900 to-neutral-900 hover:bg-neutral-850 border border-emerald-500/30 hover:border-emerald-400 text-neutral-200 hover:text-white transition-all text-xs font-medium group shadow-sm cursor-pointer w-full text-left"
+                  id="footer-payment-qr-btn"
+                  title="Official Store UPI QR Code: sumit6269@kotak"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow group-hover:scale-110 transition-transform">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center justify-between">
+                      <span>Store UPI Payment QR</span>
+                      <span className="text-[9.5px] font-semibold text-emerald-400 uppercase tracking-tight">Pay Online</span>
+                    </div>
+                    <div className="text-[10.5px] text-neutral-400 truncate">
+                      sumit6269@kotak • GPay / PhonePe / Paytm
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         </div>

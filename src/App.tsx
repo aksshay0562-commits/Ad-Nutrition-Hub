@@ -47,6 +47,7 @@ import { ThemeModal } from './components/ThemeModal';
 import { NutritionExpertModal } from './components/NutritionExpertModal';
 import { CatalogSortBar, ProductSortOption } from './components/CatalogSortBar';
 import { QuickOrderModal } from './components/QuickOrderModal';
+import { PaymentQRModal } from './components/PaymentQRModal';
 import { VoiceSearchButton } from './components/VoiceSearchButton';
 import { 
   SiteVisitStats, 
@@ -84,6 +85,9 @@ export default function App() {
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
+  const [isPaymentQRModalOpen, setIsPaymentQRModalOpen] = useState(false);
+  const [paymentQRAmount, setPaymentQRAmount] = useState<number | undefined>(undefined);
+  const [paymentQRProduct, setPaymentQRProduct] = useState<{ name: string; price: number } | undefined>(undefined);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
@@ -93,6 +97,13 @@ export default function App() {
   const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
+
+  const handleOpenPaymentQR = (amount?: number, product?: { name: string; price: number }) => {
+    triggerHaptic('light');
+    setPaymentQRAmount(amount);
+    setPaymentQRProduct(product);
+    setIsPaymentQRModalOpen(true);
+  };
 
   // App Colour & Background Theme State
   const [currentColorTheme, setCurrentColorTheme] = useState<string>(getSavedColorTheme);
@@ -537,6 +548,7 @@ export default function App() {
         onOpenExpertAdvice={() => handleOpenExpertAdvice()}
         visitStats={visitStats}
         onOpenVisitStats={() => setIsVisitModalOpen(true)}
+        onOpenPaymentQR={() => handleOpenPaymentQR()}
       />
 
       {/* Hero Section */}
@@ -553,6 +565,7 @@ export default function App() {
           onOpenExpertAdvice={() => handleOpenExpertAdvice()}
           visitStats={visitStats}
           onOpenVisitStats={() => setIsVisitModalOpen(true)}
+          onOpenPaymentQR={() => handleOpenPaymentQR()}
         />
       </div>
 
@@ -1044,7 +1057,10 @@ export default function App() {
       <ContactSection />
 
       {/* Floating WhatsApp Action Button */}
-      <FloatingWhatsApp onOpenExpertAdvice={() => handleOpenExpertAdvice()} />
+      <FloatingWhatsApp 
+        onOpenExpertAdvice={() => handleOpenExpertAdvice()} 
+        onOpenPaymentQR={() => handleOpenPaymentQR()}
+      />
 
       {/* Footer */}
       <Footer
@@ -1058,6 +1074,7 @@ export default function App() {
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         visitStats={visitStats}
         onOpenVisitStats={() => setIsVisitModalOpen(true)}
+        onOpenPaymentQR={() => handleOpenPaymentQR()}
       />
 
       {/* Site Visit Traffic & Analytics Modal */}
@@ -1084,6 +1101,7 @@ export default function App() {
         onQuickOrder={(p) => setQuickOrderProduct(p)}
         isAdmin={isAdmin}
         onShowQR={(p) => setQrModalProduct(p)}
+        onOpenPaymentQR={(amt, prod) => handleOpenPaymentQR(amt, prod)}
         onEdit={(p) => {
           setSelectedProduct(null);
           setEditingProduct(p);
@@ -1190,6 +1208,15 @@ export default function App() {
           setQuickOrderProduct(null);
           setSelectedProduct(p);
         }}
+        onOpenPaymentQR={(amt) => handleOpenPaymentQR(amt, quickOrderProduct ? { name: quickOrderProduct.name, price: quickOrderProduct.price } : undefined)}
+      />
+
+      {/* Official Store UPI Payment QR Code Modal (Kotak Mahindra Bank - sumit6269@kotak) */}
+      <PaymentQRModal
+        isOpen={isPaymentQRModalOpen}
+        onClose={() => setIsPaymentQRModalOpen(false)}
+        initialAmount={paymentQRAmount}
+        productContext={paymentQRProduct}
       />
     </div>
   );

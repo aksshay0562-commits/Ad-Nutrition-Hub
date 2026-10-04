@@ -90,6 +90,13 @@ export interface StoreInfo {
   googleMapsUrl: string;
   instagram: string;
   facebook: string;
+  payment: {
+    upiId: string;
+    payeeName: string;
+    bankName: string;
+    accountType: string;
+    accountMasked: string;
+  };
 }
 
 export const STORE_INFO: StoreInfo = {
@@ -126,5 +133,12 @@ export const STORE_INFO: StoreInfo = {
   },
   googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Mandi+Mor+Israna+Panipat+Haryana",
   instagram: "https://www.instagram.com/ad_nutrition_hub_israna",
-  facebook: "https://www.facebook.com/adnutritionhubisrana"
+  facebook: "https://www.facebook.com/adnutritionhubisrana",
+  payment: {
+    upiId: "sumit6269@kotak",
+    payeeName: "Sumit .",
+    bankName: "Kotak Mahindra Bank",
+    accountType: "Savings",
+    accountMasked: "XX8240"
+  }
 };

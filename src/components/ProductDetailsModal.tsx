@@ -56,6 +56,7 @@ interface ProductDetailsModalProps {
   onQuickOrder?: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onShowQR?: (product: Product) => void;
+  onOpenPaymentQR?: (amount?: number, product?: { name: string; price: number }) => void;
   isAdmin?: boolean;
 }
 
@@ -65,6 +66,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onQuickOrder,
   onEdit,
   onShowQR,
+  onOpenPaymentQR,
   isAdmin = false
 }) => {
   if (!product) return null;
@@ -900,6 +902,26 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               >
                 <Zap className="w-4 h-4 fill-neutral-950 text-neutral-950" />
                 <span>⚡ Quick Order (Select Quantity & Delivery Details)</span>
+              </motion.button>
+            )}
+
+            {/* Direct Pay via Store UPI QR Button */}
+            {onOpenPaymentQR && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onOpenPaymentQR(product.price, { name: product.name, price: product.price });
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-850 border border-emerald-500/40 text-emerald-400 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                id="modal-pay-upi-qr-btn"
+                title="Open Official Store UPI QR Code for instant payment"
+              >
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span>Pay ₹{product.price} via Store UPI QR (sumit6269@kotak)</span>
               </motion.button>
             )}
 

@@ -34,7 +34,8 @@ import {
   Search,
   FileSpreadsheet,
   RefreshCw,
-  Activity
+  Activity,
+  CreditCard
 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { 
@@ -75,10 +76,12 @@ interface Ripple {
 
 export interface FloatingWhatsAppProps {
   onOpenExpertAdvice?: () => void;
+  onOpenPaymentQR?: () => void;
 }
 
 export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   onOpenExpertAdvice,
+  onOpenPaymentQR,
 }) => {
   const [showTooltip, setShowTooltip] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -1966,6 +1969,25 @@ Visit the online catalog or walk in to check batch verification and current in-s
           >
             <QrCode className="w-4 h-4" />
           </motion.button>
+
+          {/* Store UPI Payment QR Button */}
+          {onOpenPaymentQR && (
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.90 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+              onClick={() => {
+                triggerHaptic('light');
+                onOpenPaymentQR();
+              }}
+              className="p-2.5 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-emerald-500/50 text-emerald-400 hover:text-emerald-300 shadow-xl flex items-center justify-center transition-colors cursor-pointer"
+              title="Official Store UPI Payment QR (sumit6269@kotak)"
+              id="floating-payment-qr-btn"
+              aria-label="Store Payment QR Code"
+            >
+              <CreditCard className="w-4 h-4" />
+            </motion.button>
+          )}
 
           {/* Dedicated Quick-Share pill icon for 1-click clipboard copy */}
           <motion.button
