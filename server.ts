@@ -393,6 +393,49 @@ app.get('/api/store-info', (req, res) => {
   });
 });
 
+// Mock API endpoint to fetch real-time statuses for tracked order IDs
+app.post('/api/orders/mock-status', (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ error: 'orderIds array is required and cannot be empty' });
+    }
+
+    const availableStatuses = [
+      'Order Confirmed',
+      'Packing in Store',
+      'Dispatched',
+      'Ready for Pickup',
+      'Delivered'
+    ];
+
+    const updates = orderIds.map((id: string) => {
+      const cleanId = String(id).trim();
+      // Generate progressive mock status advancement
+      const seed = cleanId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) + Math.floor(Date.now() / 60000);
+      const newStatus = availableStatuses[seed % availableStatuses.length];
+
+      return {
+        orderId: cleanId,
+        status: newStatus,
+        lastChecked: new Date().toISOString(),
+        verifiedStore: "AD Nutrition Hub, Mandi Mor, Israna",
+        estimatedFulfillment: "15-45 minutes / Same day"
+      };
+    });
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      source: "AD Nutrition Hub Israna Mock Fulfillment Engine",
+      updates
+    });
+  } catch (err: any) {
+    console.error('Failed to fetch mock order statuses:', err);
+    res.status(500).json({ error: 'Failed to fetch mock order statuses' });
+  }
+});
+
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

@@ -32,7 +32,8 @@ import {
   ChevronDown,
   Send,
   Search,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { 
@@ -54,7 +55,8 @@ import {
   removeOrderTrackingItem, 
   clearOrderTrackingHistory, 
   formatOrderRelativeTime,
-  exportOrderHistoryToCSV
+  exportOrderHistoryToCSV,
+  fetchRealtimeOrderStatuses
 } from '../utils/orderTracking';
 import { 
   getQrBorderGradientConfig, 
@@ -130,6 +132,44 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     if (success) {
       setCsvExportSuccess(true);
       setTimeout(() => setCsvExportSuccess(false), 2500);
+    }
+  };
+
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const [refreshStatusMessage, setRefreshStatusMessage] = useState<string | null>(null);
+
+  // Hits mock API to fetch real-time statuses for the displayed orders in the history list
+  const handleRefreshLiveStatus = async () => {
+    const ordersToRefresh = filteredHistory.length > 0 ? filteredHistory : trackingHistory;
+    if (ordersToRefresh.length === 0) {
+      triggerHaptic('error');
+      return;
+    }
+
+    setIsRefreshingStatus(true);
+    triggerHaptic('medium');
+
+    try {
+      const orderIds = ordersToRefresh.map((item) => item.orderId);
+      const updates = await fetchRealtimeOrderStatuses(orderIds);
+
+      // Update statuses in localStorage and memory
+      let updatedList = getOrderTrackingHistory();
+      for (const update of updates) {
+        updatedList = updateOrderTrackingStatus(update.orderId, update.status);
+      }
+
+      setTrackingHistory(updatedList);
+      triggerHaptic('success');
+      setRefreshStatusMessage(`Updated ${updates.length} ${updates.length === 1 ? 'order' : 'orders'}!`);
+      setTimeout(() => setRefreshStatusMessage(null), 2800);
+    } catch (err) {
+      console.error('Failed to refresh real-time statuses:', err);
+      triggerHaptic('error');
+      setRefreshStatusMessage('Refresh failed');
+      setTimeout(() => setRefreshStatusMessage(null), 2800);
+    } finally {
+      setIsRefreshingStatus(false);
     }
   };
 
@@ -1247,13 +1287,34 @@ Visit the online catalog or walk in to check batch verification and current in-s
               ) : (
                 /* Tab 2: Persistent History View (Displays Last 5 Searched Orders with Distinct Backgrounds & Quick-Filter) */
                 <div className="space-y-3" id="order-tracking-history-view">
-                  {/* History View Sub-header with Quick CSV Export */}
-                  <div className="flex items-center justify-between text-[11px] font-bold text-neutral-300 pb-1 border-b border-neutral-800/80">
-                    <span className="flex items-center gap-1.5">
+                  {/* History View Sub-header with Refresh Status & Quick CSV Export */}
+                  <div className="flex items-center justify-between gap-1.5 text-[11px] font-bold text-neutral-300 pb-1 border-b border-neutral-800/80">
+                    <span className="flex items-center gap-1.5 shrink-0">
                       <History className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Last 5 Searched Orders</span>
+                      <span>Last 5 Searches</span>
                     </span>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Refresh Status Button hitting Mock API */}
+                      <button
+                        type="button"
+                        onClick={handleRefreshLiveStatus}
+                        disabled={isRefreshingStatus || (filteredHistory.length === 0 && trackingHistory.length === 0)}
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                          isRefreshingStatus
+                            ? 'bg-amber-400/25 text-amber-300 border-amber-400/50 animate-pulse'
+                            : refreshStatusMessage
+                            ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-sm'
+                            : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 border-amber-500/30 hover:border-amber-400 shadow-sm'
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                        title="Hit mock API to fetch real-time fulfillment statuses for displayed orders"
+                        id="refresh-order-statuses-btn"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isRefreshingStatus ? 'animate-spin text-amber-400' : ''}`} />
+                        <span>{isRefreshingStatus ? 'Refreshing...' : refreshStatusMessage || 'Refresh Status'}</span>
+                      </button>
+
+                      {/* Quick CSV Export */}
                       {trackingHistory.length > 0 && (
                         <button
                           type="button"
@@ -1270,7 +1331,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                           {csvExportSuccess ? (
                             <>
                               <Check className="w-3 h-3 text-emerald-400" />
-                              <span>Exported!</span>
+                              <span>CSV</span>
                             </>
                           ) : (
                             <>
@@ -1280,9 +1341,6 @@ Visit the online catalog or walk in to check batch verification and current in-s
                           )}
                         </button>
                       )}
-                      <span className="text-[10px] text-neutral-400 font-medium">
-                        Local storage
-                      </span>
                     </div>
                   </div>
 

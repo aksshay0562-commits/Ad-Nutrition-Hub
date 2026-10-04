@@ -366,3 +366,47 @@ export function exportOrderHistoryToCSV(
     return false;
   }
 }
+
+/**
+ * Hits the mock status API to fetch updated real-time statuses for tracked order IDs.
+ * Includes graceful offline fallback simulation.
+ */
+export async function fetchRealtimeOrderStatuses(
+  orderIds: string[]
+): Promise<Array<{ orderId: string; status: OrderTrackingStatus }>> {
+  if (!orderIds || orderIds.length === 0) return [];
+
+  try {
+    const res = await fetch('/api/orders/mock-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderIds }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.updates && Array.isArray(data.updates)) {
+        return data.updates.map((u: any) => ({
+          orderId: String(u.orderId),
+          status: u.status as OrderTrackingStatus,
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Network call to mock status API failed, using fallback simulation', e);
+  }
+
+  // Fallback simulation
+  const fallbackStatuses: OrderTrackingStatus[] = [
+    'Order Confirmed',
+    'Packing in Store',
+    'Dispatched',
+    'Ready for Pickup',
+    'Delivered',
+  ];
+
+  return orderIds.map((id, index) => ({
+    orderId: id,
+    status: fallbackStatuses[(id.length + index + Math.floor(Date.now() / 30000)) % fallbackStatuses.length],
+  }));
+}
