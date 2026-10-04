@@ -921,7 +921,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 title="Open Official Store UPI QR Code for instant payment"
               >
                 <QrCode className="w-4 h-4 text-emerald-400" />
-                <span>Pay ₹{product.price} via Store UPI QR (sumit6269@kotak)</span>
+                <span>Pay ₹{product.price} via Store UPI QR (PhonePe / Kotak)</span>
               </motion.button>
             )}
 

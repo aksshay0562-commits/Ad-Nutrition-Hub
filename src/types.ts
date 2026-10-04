@@ -63,6 +63,30 @@ export const CATEGORIES = [
 
 export type CategoryType = typeof CATEGORIES[number];
 
+export interface PaymentMethodDetails {
+  id: 'phonepe' | 'kotak';
+  name: string;
+  payeeName: string;
+  upiId: string;
+  terminalId?: string;
+  bankName?: string;
+  accountType?: string;
+  accountMasked?: string;
+  badge: string;
+  tag: string;
+  color: string;
+  subtitle: string;
+}
+
+export interface StorePaymentInfo {
+  upiId: string;
+  payeeName: string;
+  bankName: string;
+  accountType: string;
+  accountMasked: string;
+  methods: PaymentMethodDetails[];
+}
+
 export interface StoreInfo {
   name: string;
   tagline: string;
@@ -90,13 +114,7 @@ export interface StoreInfo {
   googleMapsUrl: string;
   instagram: string;
   facebook: string;
-  payment: {
-    upiId: string;
-    payeeName: string;
-    bankName: string;
-    accountType: string;
-    accountMasked: string;
-  };
+  payment: StorePaymentInfo;
 }
 
 export const STORE_INFO: StoreInfo = {
@@ -135,10 +153,36 @@ export const STORE_INFO: StoreInfo = {
   instagram: "https://www.instagram.com/ad_nutrition_hub_israna",
   facebook: "https://www.facebook.com/adnutritionhubisrana",
   payment: {
-    upiId: "sumit6269@kotak",
-    payeeName: "Sumit .",
-    bankName: "Kotak Mahindra Bank",
-    accountType: "Savings",
-    accountMasked: "XX8240"
+    upiId: "Q184293082@ybl",
+    payeeName: "A D Nutrition Hub",
+    bankName: "PhonePe Merchant / Kotak Bank",
+    accountType: "Current / Savings",
+    accountMasked: "Terminal 1-Q184293082",
+    methods: [
+      {
+        id: 'phonepe',
+        name: 'PhonePe Merchant QR',
+        payeeName: 'A D Nutrition Hub',
+        upiId: 'Q184293082@ybl',
+        terminalId: 'Terminal 1-Q184293082',
+        badge: 'Official Store Merchant',
+        tag: 'Store Business A/C',
+        color: '#5f259f',
+        subtitle: 'BHIM UPI • Terminal 1-Q184293082'
+      },
+      {
+        id: 'kotak',
+        name: 'Kotak Mahindra Bank',
+        payeeName: 'Sumit .',
+        upiId: 'sumit6269@kotak',
+        bankName: 'Kotak Mahindra Bank',
+        accountType: 'Savings',
+        accountMasked: 'XX8240',
+        badge: 'Owner Direct A/C',
+        tag: 'Instant Bank Transfer',
+        color: '#ED1C24',
+        subtitle: 'Kotak 811 • Savings XX8240'
+      }
+    ]
   }
 };

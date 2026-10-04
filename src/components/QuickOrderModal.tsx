@@ -33,7 +33,7 @@ export interface QuickOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenDetails?: (product: Product) => void;
-  onOpenPaymentQR?: (amount?: number) => void;
+  onOpenPaymentQR?: (amount?: number, method?: 'phonepe' | 'kotak') => void;
 }
 
 export type OrderFulfillment = 'pickup' | 'delivery';
@@ -65,6 +65,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
   const [fulfillment, setFulfillment] = useState<OrderFulfillment>('pickup');
   const [address, setAddress] = useState<string>('');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('upi');
+  const [quickOrderPaymentMethod, setQuickOrderPaymentMethod] = useState<'phonepe' | 'kotak'>('phonepe');
   const [specialNotes, setSpecialNotes] = useState<string>('');
   const [selectedLine, setSelectedLine] = useState<WhatsAppLine>('line1');
   const [orderRefId, setOrderRefId] = useState<string>(() => `AD-${Math.floor(10000 + Math.random() * 90000)}`);
@@ -124,6 +125,11 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
     };
   }, [product, quantity]);
 
+  // Current selected UPI method (PhonePe vs Kotak)
+  const currentQuickPaymentMethod = useMemo(() => {
+    return STORE_INFO.payment.methods.find((m) => m.id === quickOrderPaymentMethod) || STORE_INFO.payment.methods[0];
+  }, [quickOrderPaymentMethod]);
+
   // Generate real-time UPI Payment QR code for order subtotal
   useEffect(() => {
     if (!isOpen || !product || calculations.subtotal <= 0) {
@@ -131,7 +137,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       return;
     }
 
-    const upiUri = `upi://pay?pa=${STORE_INFO.payment.upiId}&pn=Sumit&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product.name.slice(0, 20)}`)}`;
+    const upiUri = `upi://pay?pa=${currentQuickPaymentMethod.upiId}&pn=${encodeURIComponent(currentQuickPaymentMethod.payeeName)}&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product.name.slice(0, 20)}`)}`;
 
     QRCode.toDataURL(upiUri, {
       width: 256,
@@ -144,7 +150,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
     })
       .then(setOrderUpiQrUrl)
       .catch(console.error);
-  }, [isOpen, product, calculations.subtotal]);
+  }, [isOpen, product, calculations.subtotal, currentQuickPaymentMethod]);
 
   // Save customer details to localStorage for future frictionless orders
   const saveCustomerDetails = () => {
@@ -645,35 +651,83 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
                       </span>
                     </div>
 
+                    {/* Dual Method Quick Switcher */}
+                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-950 rounded-xl border border-neutral-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setQuickOrderPaymentMethod('phonepe');
+                        }}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          quickOrderPaymentMethod === 'phonepe'
+                            ? 'bg-[#5f259f] text-white shadow-sm ring-1 ring-purple-400/50'
+                            : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-white text-[#5f259f] font-black text-[9px] flex items-center justify-center">
+                          पे
+                        </span>
+                        <span>PhonePe QR</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setQuickOrderPaymentMethod('kotak');
+                        }}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          quickOrderPaymentMethod === 'kotak'
+                            ? 'bg-[#ED1C24] text-white shadow-sm ring-1 ring-red-400/50'
+                            : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-white text-[#ED1C24] font-black text-[9px] flex items-center justify-center">
+                          811
+                        </span>
+                        <span>Kotak Bank QR</span>
+                      </button>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row items-center gap-3.5 bg-white text-neutral-900 p-3.5 rounded-xl border border-neutral-200">
                       {/* Mini QR Code */}
                       <div className="w-28 h-28 shrink-0 bg-white rounded-lg p-1 border border-neutral-200 flex items-center justify-center relative shadow-sm">
                         {orderUpiQrUrl ? (
                           <img 
                             src={orderUpiQrUrl} 
-                            alt="Order UPI Payment QR" 
+                            alt={`Order UPI Payment QR - ${currentQuickPaymentMethod.name}`} 
                             className="w-full h-full object-contain"
                           />
                         ) : (
                           <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                         )}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#ED1C24] flex items-center justify-center text-[8px] font-black text-[#003366] shadow">
-                          ∞
-                        </div>
+                        {quickOrderPaymentMethod === 'phonepe' ? (
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#5f259f] flex items-center justify-center text-[7.5px] font-black text-[#5f259f] shadow">
+                            पे
+                          </div>
+                        ) : (
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#ED1C24] flex items-center justify-center text-[8px] font-black text-[#003366] shadow">
+                            ∞
+                          </div>
+                        )}
                       </div>
 
                       {/* Payee Info & Actions */}
                       <div className="space-y-1.5 text-center sm:text-left min-w-0 flex-1">
-                        <div className="text-xs font-bold text-neutral-900">
-                          {STORE_INFO.payment.payeeName} • <span className="text-neutral-500 font-normal">{STORE_INFO.payment.accountType} {STORE_INFO.payment.accountMasked}</span>
+                        <div className="text-xs font-bold text-neutral-900 flex items-center justify-center sm:justify-start gap-1.5 flex-wrap">
+                          <span>{currentQuickPaymentMethod.payeeName}</span>
+                          <span className="text-[10px] text-neutral-500 font-normal">
+                            ({currentQuickPaymentMethod.subtitle})
+                          </span>
                         </div>
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-100 border border-neutral-300 text-xs font-mono font-bold text-neutral-900">
-                          <span>{STORE_INFO.payment.upiId}</span>
+                          <span>{currentQuickPaymentMethod.upiId}</span>
                           <button
                             type="button"
                             onClick={() => {
                               triggerHaptic('success');
-                              navigator.clipboard.writeText(STORE_INFO.payment.upiId);
+                              navigator.clipboard.writeText(currentQuickPaymentMethod.upiId);
                               setCopiedUpiInline(true);
                               setTimeout(() => setCopiedUpiInline(false), 2000);
                             }}
@@ -687,15 +741,15 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
                           {onOpenPaymentQR && (
                             <button
                               type="button"
-                              onClick={() => onOpenPaymentQR(calculations.subtotal)}
+                              onClick={() => onOpenPaymentQR(calculations.subtotal, quickOrderPaymentMethod)}
                               className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1 cursor-pointer"
                             >
-                              <span>Enlarge QR Code</span>
+                              <span>Enlarge Full QR</span>
                               <ExternalLink className="w-3 h-3" />
                             </button>
                           )}
                           <a
-                            href={`upi://pay?pa=${STORE_INFO.payment.upiId}&pn=Sumit&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product?.name?.slice(0, 20) || 'Order'}`)}`}
+                            href={`upi://pay?pa=${currentQuickPaymentMethod.upiId}&pn=${encodeURIComponent(currentQuickPaymentMethod.payeeName)}&am=${calculations.subtotal}&cu=INR&tn=${encodeURIComponent(`AD Nutrition: ${product?.name?.slice(0, 20) || 'Order'}`)}`}
                             className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
                           >
                             Pay in UPI App

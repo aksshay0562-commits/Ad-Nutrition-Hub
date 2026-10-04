@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -8,20 +8,21 @@ import {
   Download, 
   ExternalLink, 
   MessageCircle, 
-  CreditCard, 
   ShieldCheck, 
   IndianRupee, 
-  Sparkles,
   QrCode as QrCodeIcon,
-  Smartphone
+  Smartphone,
+  Store,
+  Building2
 } from 'lucide-react';
-import { STORE_INFO } from '../types';
+import { STORE_INFO, PaymentMethodDetails } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 
 interface PaymentQRModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialAmount?: number;
+  initialMethod?: 'phonepe' | 'kotak';
   productContext?: {
     name: string;
     price: number;
@@ -32,18 +33,18 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   isOpen,
   onClose,
   initialAmount,
+  initialMethod = 'phonepe',
   productContext
 }) => {
+  const [selectedMethodId, setSelectedMethodId] = useState<'phonepe' | 'kotak'>(initialMethod);
   const [amount, setAmount] = useState<string>(initialAmount ? initialAmount.toString() : '');
   const [showAmountInput, setShowAmountInput] = useState<boolean>(Boolean(initialAmount));
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const payeeName = STORE_INFO.payment.payeeName; // "Sumit ."
-  const upiId = STORE_INFO.payment.upiId; // "sumit6269@kotak"
-  const accountInfo = `${STORE_INFO.payment.accountType} ${STORE_INFO.payment.accountMasked}`; // "Savings XX8240"
+  const methods = STORE_INFO.payment.methods;
+  const currentMethod: PaymentMethodDetails = methods.find(m => m.id === selectedMethodId) || methods[0];
 
   // Build the UPI Payment URI
   const numericAmount = parseFloat(amount);
@@ -51,8 +52,8 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 
   const upiUri = React.useMemo(() => {
     const params = new URLSearchParams();
-    params.set('pa', upiId);
-    params.set('pn', 'Sumit');
+    params.set('pa', currentMethod.upiId);
+    params.set('pn', currentMethod.payeeName);
     params.set('cu', 'INR');
     if (validAmount) {
       params.set('am', validAmount);
@@ -63,9 +64,9 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
     params.set('tn', note);
 
     return `upi://pay?${params.toString()}`;
-  }, [upiId, validAmount, productContext]);
+  }, [currentMethod, validAmount, productContext]);
 
-  // Generate QR Code with high quality whenever amount or URI changes
+  // Generate QR Code with high error correction whenever amount, method, or URI changes
   useEffect(() => {
     if (!isOpen) return;
 
@@ -87,7 +88,7 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
         console.error('Failed to generate payment QR code:', err);
         setIsGenerating(false);
       });
-  }, [upiUri, isOpen]);
+  }, [upiUri, isOpen, selectedMethodId]);
 
   // Sync initialAmount if passed
   useEffect(() => {
@@ -97,16 +98,22 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
     }
   }, [initialAmount]);
 
+  // Sync initialMethod if changed
+  useEffect(() => {
+    if (initialMethod) {
+      setSelectedMethodId(initialMethod);
+    }
+  }, [initialMethod]);
+
   if (!isOpen) return null;
 
   const handleCopyUpiId = async () => {
     triggerHaptic('success');
     try {
-      await navigator.clipboard.writeText(upiId);
+      await navigator.clipboard.writeText(currentMethod.upiId);
       setCopiedUpi(true);
       setTimeout(() => setCopiedUpi(false), 2500);
     } catch {
-      // Fallback
       setCopiedUpi(true);
       setTimeout(() => setCopiedUpi(false), 2500);
     }
@@ -118,7 +125,7 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 
     const link = document.createElement('a');
     link.href = qrDataUrl;
-    link.download = `AD-Nutrition-Payment-QR-${validAmount ? `Rs${validAmount}` : 'UPI'}.png`;
+    link.download = `AD-Nutrition-${currentMethod.id === 'phonepe' ? 'PhonePe' : 'Kotak'}-QR-${validAmount ? `Rs${validAmount}` : 'UPI'}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -131,8 +138,8 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 
   const getWhatsAppConfirmUrl = () => {
     const text = validAmount
-      ? `Namaste Sumit bhaiya! Maine AD Nutrition Hub Israna ke liye ₹${validAmount} ka UPI payment (${upiId}) kar diya hai.${productContext ? ` Product: ${productContext.name}` : ''} Kripya payment verify karein.`
-      : `Namaste Sumit bhaiya! Maine AD Nutrition Hub Israna ke UPI (${upiId}) par payment transfer kiya hai. Kripya check karein.`;
+      ? `Namaste Sumit bhaiya! Maine AD Nutrition Hub Israna ke liye ${currentMethod.name} (${currentMethod.upiId}) se ₹${validAmount} ka UPI payment transfer kar diya hai.${productContext ? ` Product: ${productContext.name}` : ''} Kripya check karein.`
+      : `Namaste Sumit bhaiya! Maine AD Nutrition Hub Israna ke ${currentMethod.name} (${currentMethod.upiId}) par UPI payment kar diya hai. Kripya verify karein.`;
     return `https://wa.me/917015959517?text=${encodeURIComponent(text)}`;
   };
 
@@ -159,11 +166,11 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
                 <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-1.5">
                   <span>Store UPI Payment QR</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-                    Live
+                    2 QR Options
                   </span>
                 </h3>
                 <p className="text-[10.5px] text-neutral-400">
-                  Instant Direct Payment to AD Nutrition Hub
+                  Select preferred payment QR for AD Nutrition Hub
                 </p>
               </div>
             </div>
@@ -180,26 +187,87 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
           </div>
 
           {/* Modal Body */}
-          <div className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-            {/* The Authentic Kotak UPI QR Card matching the user's uploaded payment receipt/standee */}
-            <div className="relative rounded-2xl bg-white text-neutral-900 p-5 shadow-xl text-center space-y-3.5 border-2 border-neutral-200">
-              {/* Payee Name & Kotak Bank Branding */}
-              <div className="space-y-1">
-                <h2 className="text-2xl font-black tracking-tight text-neutral-900 font-sans">
-                  {payeeName}
-                </h2>
-                
-                {/* Kotak Mahindra Bank & Account Badge */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-semibold border border-neutral-200">
-                  {/* Kotak Infinity Logo representation */}
-                  <span className="w-4 h-4 rounded-full bg-[#ED1C24] flex items-center justify-center text-white font-bold text-[9px] shadow-sm">
-                    <span className="text-[#003366] font-black">∞</span>
-                  </span>
-                  <span className="text-neutral-900 font-bold">{accountInfo}</span>
-                </div>
-              </div>
+          <div className="p-4 sm:p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+            {/* Dual Payment QR Method Switcher Tabs */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-2xl border border-neutral-800" id="payment-qr-switcher-tabs">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setSelectedMethodId('phonepe');
+                }}
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  selectedMethodId === 'phonepe'
+                    ? 'bg-[#5f259f] text-white shadow-md shadow-purple-950/60 ring-1 ring-purple-400/50'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+                id="select-phonepe-qr-tab"
+              >
+                <span className="w-5 h-5 rounded-full bg-white text-[#5f259f] font-black text-[10px] flex items-center justify-center">
+                  पे
+                </span>
+                <span className="truncate">PhonePe QR</span>
+              </button>
 
-              {/* QR Code Container with Center Kotak / UPI Emblem */}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setSelectedMethodId('kotak');
+                }}
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  selectedMethodId === 'kotak'
+                    ? 'bg-[#ED1C24] text-white shadow-md shadow-red-950/60 ring-1 ring-red-400/50'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+                id="select-kotak-qr-tab"
+              >
+                <span className="w-5 h-5 rounded-full bg-white text-[#ED1C24] font-black text-[10px] flex items-center justify-center">
+                  811
+                </span>
+                <span className="truncate">Kotak Bank QR</span>
+              </button>
+            </div>
+
+            {/* The Authentic QR Card (PhonePe vs Kotak 811) */}
+            <div className="relative rounded-3xl bg-white text-neutral-900 p-5 shadow-2xl text-center space-y-3.5 border-2 border-neutral-200">
+              {/* Card Header matching respective brand standee */}
+              {selectedMethodId === 'phonepe' ? (
+                /* PhonePe Standee Header matching IMG-20261004-WA0029.jpg */
+                <div className="space-y-2">
+                  <div className="flex flex-col items-center justify-center">
+                    {/* Purple PhonePe Logo circle with 'पे' */}
+                    <div className="w-12 h-12 rounded-full bg-[#5f259f] flex items-center justify-center text-white shadow-md">
+                      <span className="font-extrabold text-2xl font-sans tracking-tight">पे</span>
+                    </div>
+                    <span className="text-[#5f259f] font-black text-2xl font-sans tracking-tight mt-0.5">
+                      PhonePe
+                    </span>
+                  </div>
+
+                  {/* Orange Pill Banner with 'A D Nutrition Hub' */}
+                  <div className="mx-auto inline-block px-6 py-2 rounded-full bg-[#F37021] text-white font-extrabold text-base sm:text-lg shadow-sm tracking-wide">
+                    A D Nutrition Hub
+                  </div>
+                </div>
+              ) : (
+                /* Kotak Mahindra Bank Header matching IMG-20260925-WA0005.jpg */
+                <div className="space-y-1.5">
+                  <h2 className="text-2xl font-black tracking-tight text-neutral-900 font-sans">
+                    {currentMethod.payeeName}
+                  </h2>
+                  
+                  {/* Kotak Bank & Account Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-semibold border border-neutral-200">
+                    <span className="w-4 h-4 rounded-full bg-[#ED1C24] flex items-center justify-center text-white font-bold text-[9px] shadow-sm">
+                      <span className="text-[#003366] font-black">∞</span>
+                    </span>
+                    <span className="text-neutral-900 font-bold">{currentMethod.accountType} {currentMethod.accountMasked}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code Container with Center Emblem */}
               <div className="relative mx-auto w-64 h-64 sm:w-68 sm:h-68 bg-white p-2 rounded-2xl border border-neutral-200 shadow-inner flex items-center justify-center">
                 {isGenerating ? (
                   <div className="flex flex-col items-center gap-2 text-neutral-400">
@@ -210,23 +278,47 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
                   <div className="relative w-full h-full flex items-center justify-center">
                     <img 
                       src={qrDataUrl} 
-                      alt={`UPI Payment QR Code for ${payeeName}`}
+                      alt={`UPI Payment QR Code for ${currentMethod.payeeName}`}
                       className="w-full h-full object-contain rounded-lg"
                       id="official-payment-qr-image"
                     />
 
-                    {/* Center Kotak / Infinity Emblem Badge over the QR code */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white border-2 border-[#ED1C24] flex items-center justify-center shadow-lg pointer-events-none">
-                      <div className="w-8 h-8 rounded-full bg-[#003366] text-white flex items-center justify-center font-bold text-xs tracking-tighter shadow-inner">
-                        <span className="text-red-500 font-extrabold text-sm">8</span>
-                        <span className="text-white font-bold text-xs">11</span>
+                    {/* Center Brand Emblem over the QR code */}
+                    {selectedMethodId === 'phonepe' ? (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white border-2 border-[#5f259f] flex items-center justify-center shadow-lg pointer-events-none">
+                        <div className="w-8 h-8 rounded-full bg-[#5f259f] text-white flex items-center justify-center font-extrabold text-sm shadow-inner">
+                          पे
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white border-2 border-[#ED1C24] flex items-center justify-center shadow-lg pointer-events-none">
+                        <div className="w-8 h-8 rounded-full bg-[#003366] text-white flex items-center justify-center font-bold text-xs tracking-tighter shadow-inner">
+                          <span className="text-red-500 font-extrabold text-sm">8</span>
+                          <span className="text-white font-bold text-xs">11</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <span className="text-xs text-neutral-400">QR Code Unavailable</span>
                 )}
               </div>
+
+              {/* Card Footer branding matching user's uploaded images */}
+              {selectedMethodId === 'phonepe' ? (
+                /* BHIM UPI & Terminal ID from IMG-20261004-WA0029.jpg */
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-black tracking-tight text-neutral-800">
+                    <span className="text-[#3c3c3b]">BHIM</span>
+                    <span className="text-orange-500">▶</span>
+                    <span className="text-[#008276]">UPI</span>
+                    <span className="text-orange-500">▶</span>
+                  </div>
+                  <div className="text-[11px] font-mono font-bold text-neutral-600">
+                    Terminal 1-Q184293082
+                  </div>
+                </div>
+              ) : null}
 
               {/* UPI ID Pill with 1-Click Copy */}
               <div className="pt-0.5">
@@ -239,7 +331,7 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
                 >
                   <span className="text-neutral-500 font-normal">UPI ID</span>
                   <span className="font-mono font-bold text-neutral-900 group-hover:text-black">
-                    {upiId}
+                    {currentMethod.upiId}
                   </span>
                   {copiedUpi ? (
                     <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs">
@@ -349,7 +441,7 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
                 id="open-in-upi-app-btn"
               >
                 <Smartphone className="w-4 h-4 text-neutral-950" />
-                <span>Pay via UPI App (GPay / PhonePe / Paytm)</span>
+                <span>Pay via UPI App ({selectedMethodId === 'phonepe' ? 'PhonePe / GPay / Paytm' : 'GPay / Kotak / Any App'})</span>
                 <ExternalLink className="w-3.5 h-3.5 text-neutral-950" />
               </button>
 
@@ -389,7 +481,7 @@ export const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 
               {/* Brand badges */}
               <div className="flex flex-wrap items-center gap-1.5">
-                {['Google Pay', 'PhonePe', 'Paytm', 'BHIM UPI', 'Cred', 'Amazon Pay', 'Any Bank App'].map((app) => (
+                {['PhonePe', 'Google Pay', 'Paytm', 'BHIM UPI', 'Cred', 'Amazon Pay', 'Any Bank App'].map((app) => (
                   <span 
                     key={app}
                     className="px-2 py-0.5 rounded-lg bg-neutral-900 border border-neutral-800 text-[10px] text-neutral-300 font-semibold"

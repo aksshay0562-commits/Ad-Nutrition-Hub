@@ -109,10 +109,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={onOpenPaymentQR}
                   className="flex items-center gap-1.5 bg-neutral-950/20 hover:bg-neutral-950/35 px-2.5 py-0.5 rounded-full text-neutral-950 transition-all cursor-pointer font-bold"
                   id="top-bar-payment-qr-btn"
-                  title="Official Store UPI Payment QR Code (sumit6269@kotak)"
+                  title="Official Store UPI Payment QR Codes (PhonePe & Kotak Bank)"
                 >
                   <QrCode className="w-3 h-3 text-neutral-950" />
-                  <span>UPI Pay QR</span>
+                  <span>UPI Pay QRs</span>
                 </button>
               </>
             )}
@@ -437,8 +437,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold group-hover:scale-110 transition-transform">
                     <QrCode className="w-3.5 h-3.5" />
                   </div>
-                  <span>UPI Payment QR:</span>
-                  <span className="font-mono text-[11px] text-amber-400 font-bold">sumit6269@kotak</span>
+                  <span>Store UPI Payment QRs:</span>
+                  <span className="font-mono text-[11px] text-amber-400 font-bold">PhonePe & Kotak</span>
                 </div>
                 <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                   Scan & Pay →

@@ -221,11 +221,11 @@ export const Footer: React.FC<FooterProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center justify-between">
-                      <span>Store UPI Payment QR</span>
+                      <span>Store UPI Payment QRs</span>
                       <span className="text-[9.5px] font-semibold text-emerald-400 uppercase tracking-tight">Pay Online</span>
                     </div>
                     <div className="text-[10.5px] text-neutral-400 truncate">
-                      sumit6269@kotak • GPay / PhonePe / Paytm
+                      PhonePe (A D Nutrition Hub) & Kotak Bank
                     </div>
                   </div>
                 </button>

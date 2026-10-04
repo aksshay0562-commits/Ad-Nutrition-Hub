@@ -88,6 +88,7 @@ export default function App() {
   const [isPaymentQRModalOpen, setIsPaymentQRModalOpen] = useState(false);
   const [paymentQRAmount, setPaymentQRAmount] = useState<number | undefined>(undefined);
   const [paymentQRProduct, setPaymentQRProduct] = useState<{ name: string; price: number } | undefined>(undefined);
+  const [paymentQRMethod, setPaymentQRMethod] = useState<'phonepe' | 'kotak'>('phonepe');
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
@@ -98,10 +99,13 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState('home');
 
-  const handleOpenPaymentQR = (amount?: number, product?: { name: string; price: number }) => {
+  const handleOpenPaymentQR = (amount?: number, product?: { name: string; price: number }, method?: 'phonepe' | 'kotak') => {
     triggerHaptic('light');
     setPaymentQRAmount(amount);
     setPaymentQRProduct(product);
+    if (method) {
+      setPaymentQRMethod(method);
+    }
     setIsPaymentQRModalOpen(true);
   };
 
@@ -1208,14 +1212,15 @@ export default function App() {
           setQuickOrderProduct(null);
           setSelectedProduct(p);
         }}
-        onOpenPaymentQR={(amt) => handleOpenPaymentQR(amt, quickOrderProduct ? { name: quickOrderProduct.name, price: quickOrderProduct.price } : undefined)}
+        onOpenPaymentQR={(amt, method) => handleOpenPaymentQR(amt, quickOrderProduct ? { name: quickOrderProduct.name, price: quickOrderProduct.price } : undefined, method)}
       />
 
-      {/* Official Store UPI Payment QR Code Modal (Kotak Mahindra Bank - sumit6269@kotak) */}
+      {/* Official Store UPI Payment QR Code Modal (PhonePe Merchant & Kotak Mahindra Bank) */}
       <PaymentQRModal
         isOpen={isPaymentQRModalOpen}
         onClose={() => setIsPaymentQRModalOpen(false)}
         initialAmount={paymentQRAmount}
+        initialMethod={paymentQRMethod}
         productContext={paymentQRProduct}
       />
     </div>
