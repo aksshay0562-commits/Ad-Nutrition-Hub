@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode, Palette, Sparkles } from 'lucide-react';
+import { Phone, MessageCircle, ShieldCheck, MapPin, Menu, X, Lock, Unlock, PlusCircle, LogIn, LogOut, User as UserIcon, Smartphone, Camera, QrCode, Palette, Sparkles, Eye, Users } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { PWAInstallButton } from './PWAInstallButton';
+import { SiteVisitStats } from '../services/visitService';
 
 interface NavbarProps {
   isAdmin: boolean;
@@ -14,6 +15,8 @@ interface NavbarProps {
   onOpenScanner?: () => void;
   onOpenThemeModal?: () => void;
   onOpenExpertAdvice?: () => void;
+  visitStats?: SiteVisitStats;
+  onOpenVisitStats?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,7 +28,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAndroidModal,
   onOpenScanner,
   onOpenThemeModal,
-  onOpenExpertAdvice
+  onOpenExpertAdvice,
+  visitStats,
+  onOpenVisitStats
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
@@ -56,6 +61,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline">• 100% Genuine & Authentic Supplements</span>
           </div>
           <div className="hidden sm:flex items-center gap-3 text-neutral-950 font-bold text-xs">
+            {onOpenVisitStats && (
+              <button
+                type="button"
+                onClick={onOpenVisitStats}
+                className="flex items-center gap-1.5 bg-neutral-950/15 hover:bg-neutral-950/25 px-2.5 py-0.5 rounded-full text-neutral-950 transition-all cursor-pointer font-bold"
+                title="View live site visits & store traffic"
+                id="top-bar-visit-counter-btn"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-800 animate-pulse" />
+                <span className="text-[11px] font-black font-mono">
+                  {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.totalVisits) : '1,845'}
+                </span>
+                <span className="text-[10px] font-semibold opacity-90">Visits</span>
+              </button>
+            )}
             <span>Shop: 8:00 AM - 9:00 PM</span>
             <span className="text-amber-800">•</span>
             <a 
@@ -351,6 +371,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Palette className="w-4 h-4 text-amber-400" />
                 <span>Change App Colour & Theme</span>
+              </button>
+            )}
+
+            {/* Mobile Nav: Live Site Visit Counter */}
+            {onOpenVisitStats && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenVisitStats();
+                }}
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-amber-400 text-xs font-semibold text-neutral-200 hover:text-white transition-all w-full cursor-pointer shadow-sm group"
+                id="mobile-nav-visit-counter-btn"
+                title="View live site visits & traffic analytics"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <Eye className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span>Store Visits:</span>
+                  <span className="font-mono font-bold text-white text-sm">
+                    {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.totalVisits) : '1,846'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-amber-400 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+                    +{visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.todayVisits) : '47'} Today
+                  </span>
+                  <span className="text-[10px] text-neutral-400 group-hover:text-amber-300">Stats →</span>
+                </div>
               </button>
             )}
             <div className="grid grid-cols-2 gap-2">

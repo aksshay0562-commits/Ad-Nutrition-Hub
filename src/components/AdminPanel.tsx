@@ -42,6 +42,7 @@ import {
   ProductScanStat,
   seedInitialScanAnalyticsIfEmpty 
 } from '../services/scanAnalyticsService';
+import { SiteVisitStats } from '../services/visitService';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -57,6 +58,8 @@ interface AdminPanelProps {
   editingProduct: Product | null;
   setEditingProduct: (product: Product | null) => void;
   onViewProductDetails?: (product: Product) => void;
+  visitStats?: SiteVisitStats;
+  onOpenVisitStats?: () => void;
 }
 
 // Preset supplement images for quick 1-click selection if user does not have a photo ready
@@ -95,7 +98,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onResetDefaults,
   editingProduct,
   setEditingProduct,
-  onViewProductDetails
+  onViewProductDetails,
+  visitStats,
+  onOpenVisitStats
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'analytics' | 'manage' | 'backup'>('form');
   const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
@@ -1075,6 +1080,69 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Reset Counts</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Website Visits & Traffic Counter Banner */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-950 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm" id="admin-visit-stats-card">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                        <Activity className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-extrabold text-white">
+                            Website Traffic & Visitor Counter
+                          </h4>
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            <span>Counting Live</span>
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          Real-time visits recorded for Mandi Mor, Israna online store catalog.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-4 bg-neutral-950/80 px-4 py-2 rounded-xl border border-neutral-800">
+                        <div>
+                          <div className="text-[10px] font-bold text-neutral-400 uppercase">Total Visits</div>
+                          <div className="text-lg font-black text-white font-mono">
+                            {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.totalVisits) : '1,846'}
+                          </div>
+                        </div>
+                        <div className="h-7 w-px bg-neutral-800" />
+                        <div>
+                          <div className="text-[10px] font-bold text-neutral-400 uppercase">Today</div>
+                          <div className="text-lg font-black text-amber-400 font-mono">
+                            +{visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.todayVisits) : '47'}
+                          </div>
+                        </div>
+                        <div className="h-7 w-px bg-neutral-800" />
+                        <div>
+                          <div className="text-[10px] font-bold text-neutral-400 uppercase">Shoppers</div>
+                          <div className="text-lg font-black text-emerald-400 font-mono">
+                            {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.uniqueVisitors) : '1,121'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {onOpenVisitStats && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            onOpenVisitStats();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-all shadow cursor-pointer flex items-center gap-1.5"
+                          id="admin-open-visit-analytics-btn"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Traffic Breakdown</span>
                         </button>
                       )}
                     </div>

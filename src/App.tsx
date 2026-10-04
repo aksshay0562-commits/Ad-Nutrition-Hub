@@ -49,6 +49,14 @@ import { CatalogSortBar, ProductSortOption } from './components/CatalogSortBar';
 import { QuickOrderModal } from './components/QuickOrderModal';
 import { VoiceSearchButton } from './components/VoiceSearchButton';
 import { 
+  SiteVisitStats, 
+  recordSiteVisit, 
+  fetchSiteVisitStats, 
+  getCachedVisitStats, 
+  VISITS_UPDATED_EVENT 
+} from './services/visitService';
+import { SiteVisitModal } from './components/SiteVisitModal';
+import { 
   initAppThemes, 
   applyColorTheme, 
   applyCustomUniqueColor, 
@@ -69,6 +77,10 @@ export default function App() {
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [priceSort, setPriceSort] = useState<ProductSortOption>('default');
   
+  // Site Visit Counting State
+  const [visitStats, setVisitStats] = useState<SiteVisitStats>(getCachedVisitStats);
+  const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
+
   // Modals & Selection
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
@@ -93,6 +105,20 @@ export default function App() {
     setCurrentColorTheme(color);
     setCurrentBgTheme(bg);
     setCustomHex(savedHex);
+  }, []);
+
+  // Record site visit on app load and listen for live updates
+  useEffect(() => {
+    recordSiteVisit().then(setVisitStats).catch(console.warn);
+
+    const handleVisitsUpdated = (e: any) => {
+      if (e.detail) {
+        setVisitStats(e.detail);
+      }
+    };
+
+    window.addEventListener(VISITS_UPDATED_EVENT, handleVisitsUpdated);
+    return () => window.removeEventListener(VISITS_UPDATED_EVENT, handleVisitsUpdated);
   }, []);
 
   const handleSelectColorTheme = (colorId: string) => {
@@ -509,6 +535,8 @@ export default function App() {
         onOpenScanner={handleOpenScanner}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         onOpenExpertAdvice={() => handleOpenExpertAdvice()}
+        visitStats={visitStats}
+        onOpenVisitStats={() => setIsVisitModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -523,6 +551,8 @@ export default function App() {
           onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
           onCalculatorClick={() => handleNavigate('calculator-stack')}
           onOpenExpertAdvice={() => handleOpenExpertAdvice()}
+          visitStats={visitStats}
+          onOpenVisitStats={() => setIsVisitModalOpen(true)}
         />
       </div>
 
@@ -1026,6 +1056,19 @@ export default function App() {
         isAdmin={isAdmin}
         onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
+        visitStats={visitStats}
+        onOpenVisitStats={() => setIsVisitModalOpen(true)}
+      />
+
+      {/* Site Visit Traffic & Analytics Modal */}
+      <SiteVisitModal
+        isOpen={isVisitModalOpen}
+        onClose={() => setIsVisitModalOpen(false)}
+        stats={visitStats}
+        onRefresh={async () => {
+          const s = await fetchSiteVisitStats();
+          setVisitStats(s);
+        }}
       />
 
       {/* Android APK & Install Modal */}
@@ -1063,6 +1106,8 @@ export default function App() {
         editingProduct={editingProduct}
         setEditingProduct={setEditingProduct}
         onViewProductDetails={(p) => setSelectedProduct(p)}
+        visitStats={visitStats}
+        onOpenVisitStats={() => setIsVisitModalOpen(true)}
       />
 
       {/* Camera QR & Barcode Scanner Modal */}

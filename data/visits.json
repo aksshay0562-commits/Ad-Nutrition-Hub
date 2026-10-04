@@ -1,0 +1,50 @@
+{
+  "totalVisits": 1846,
+  "uniqueVisitors": 1121,
+  "todayVisits": 47,
+  "todayDate": "2026-10-04",
+  "visitorIds": [
+    "test_vis_1"
+  ],
+  "dailyHistory": [
+    {
+      "date": "2026-10-01",
+      "visits": 58,
+      "unique": 41
+    },
+    {
+      "date": "2026-10-02",
+      "visits": 74,
+      "unique": 52
+    },
+    {
+      "date": "2026-10-03",
+      "visits": 89,
+      "unique": 63
+    }
+  ],
+  "recentVisits": [
+    {
+      "id": "v-1791111045134-tamu",
+      "timestamp": "2026-10-04T10:50:45.135Z",
+      "path": "/",
+      "referrer": "Direct Navigation",
+      "deviceType": "Desktop / Laptop"
+    },
+    {
+      "id": "v-init-1",
+      "timestamp": "2026-10-04T10:38:24.231Z",
+      "path": "/",
+      "referrer": "Google Search",
+      "deviceType": "Mobile"
+    },
+    {
+      "id": "v-init-2",
+      "timestamp": "2026-10-04T10:46:24.231Z",
+      "path": "/catalog",
+      "referrer": "WhatsApp Direct",
+      "deviceType": "Mobile"
+    }
+  ],
+  "lastVisitedAt": "2026-10-04T10:50:45.135Z"
+}

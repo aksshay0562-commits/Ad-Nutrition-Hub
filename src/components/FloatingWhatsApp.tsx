@@ -33,7 +33,8 @@ import {
   Send,
   Search,
   FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { 
@@ -118,6 +119,15 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     return trackingHistory.filter((item) => item.status === historyStatusFilter);
   }, [trackingHistory, historyStatusFilter]);
 
+  // Dynamic summary counters for 'In-Transit' vs 'Delivered' orders
+  const inTransitCount = React.useMemo(() => {
+    return trackingHistory.filter((item) => item.status === 'Dispatched').length;
+  }, [trackingHistory]);
+
+  const deliveredCount = React.useMemo(() => {
+    return trackingHistory.filter((item) => item.status === 'Delivered').length;
+  }, [trackingHistory]);
+
   const [csvExportSuccess, setCsvExportSuccess] = useState(false);
 
   // Export current filtered history into Excel-compatible CSV file
@@ -138,16 +148,38 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [refreshStatusMessage, setRefreshStatusMessage] = useState<string | null>(null);
 
+  // Auto-refresh state with browser localStorage persistence
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ad_nutrition_tracker_auto_refresh') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [autoRefreshSecondsLeft, setAutoRefreshSecondsLeft] = useState<number>(60);
+
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ad_nutrition_tracker_auto_refresh', String(next));
+      } catch {}
+      triggerHaptic(next ? 'success' : 'light');
+      setAutoRefreshSecondsLeft(60);
+      return next;
+    });
+  };
+
   // Hits mock API to fetch real-time statuses for the displayed orders in the history list
-  const handleRefreshLiveStatus = async () => {
+  const handleRefreshLiveStatus = async (isAuto: boolean = false) => {
     const ordersToRefresh = filteredHistory.length > 0 ? filteredHistory : trackingHistory;
     if (ordersToRefresh.length === 0) {
-      triggerHaptic('error');
+      if (!isAuto) triggerHaptic('error');
       return;
     }
 
     setIsRefreshingStatus(true);
-    triggerHaptic('medium');
+    if (!isAuto) triggerHaptic('medium');
 
     try {
       const orderIds = ordersToRefresh.map((item) => item.orderId);
@@ -160,18 +192,54 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
       }
 
       setTrackingHistory(updatedList);
-      triggerHaptic('success');
-      setRefreshStatusMessage(`Updated ${updates.length} ${updates.length === 1 ? 'order' : 'orders'}!`);
+      if (!isAuto) triggerHaptic('success');
+      setRefreshStatusMessage(
+        isAuto 
+          ? `Auto: Updated ${updates.length} ${updates.length === 1 ? 'order' : 'orders'}!` 
+          : `Updated ${updates.length} ${updates.length === 1 ? 'order' : 'orders'}!`
+      );
       setTimeout(() => setRefreshStatusMessage(null), 2800);
+      setAutoRefreshSecondsLeft(60);
     } catch (err) {
       console.error('Failed to refresh real-time statuses:', err);
-      triggerHaptic('error');
-      setRefreshStatusMessage('Refresh failed');
-      setTimeout(() => setRefreshStatusMessage(null), 2800);
+      if (!isAuto) {
+        triggerHaptic('error');
+        setRefreshStatusMessage('Refresh failed');
+        setTimeout(() => setRefreshStatusMessage(null), 2800);
+      }
     } finally {
       setIsRefreshingStatus(false);
     }
   };
+
+  // Keep ref up-to-date for interval callback
+  const handleRefreshLiveStatusRef = React.useRef(handleRefreshLiveStatus);
+  useEffect(() => {
+    handleRefreshLiveStatusRef.current = handleRefreshLiveStatus;
+  });
+
+  // Auto-refresh timer: triggers every 60 seconds when tracker history is visible
+  const isTrackerHistoryVisible = showOrderTracker && trackerTab === 'history' && trackingHistory.length > 0;
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || !isTrackerHistoryVisible) {
+      setAutoRefreshSecondsLeft(60);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setAutoRefreshSecondsLeft((prev) => {
+        if (prev <= 1) {
+          // Trigger the real-time status check
+          handleRefreshLiveStatusRef.current(true);
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [autoRefreshEnabled, isTrackerHistoryVisible]);
 
   // Load order tracking history from browser localStorage on mount and when modal opens
   const refreshHistory = () => {
@@ -1295,10 +1363,38 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     </span>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Auto-Refresh 60s Toggle */}
+                      {trackingHistory.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={toggleAutoRefresh}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                            autoRefreshEnabled
+                              ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-sm'
+                              : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border-neutral-800'
+                          }`}
+                          title={
+                            autoRefreshEnabled
+                              ? `Auto-refresh active every 60s (Next in ${autoRefreshSecondsLeft}s). Click to pause.`
+                              : 'Enable auto-refresh every 60 seconds when tracker history is visible'
+                          }
+                          id="auto-refresh-toggle-btn"
+                          aria-pressed={autoRefreshEnabled}
+                        >
+                          <span className="flex h-1.5 w-1.5 relative">
+                            {autoRefreshEnabled && (
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            )}
+                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${autoRefreshEnabled ? 'bg-emerald-400' : 'bg-neutral-600'}`}></span>
+                          </span>
+                          <span>Auto {autoRefreshEnabled ? `${autoRefreshSecondsLeft}s` : 'Off'}</span>
+                        </button>
+                      )}
+
                       {/* Refresh Status Button hitting Mock API */}
                       <button
                         type="button"
-                        onClick={handleRefreshLiveStatus}
+                        onClick={() => handleRefreshLiveStatus(false)}
                         disabled={isRefreshingStatus || (filteredHistory.length === 0 && trackingHistory.length === 0)}
                         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
                           isRefreshingStatus
@@ -1343,6 +1439,152 @@ Visit the online catalog or walk in to check batch verification and current in-s
                       )}
                     </div>
                   </div>
+
+                  {/* Top-Level Summary Widget: Dynamic 'In-Transit' vs 'Delivered' Counter */}
+                  {trackingHistory.length > 0 && (
+                    <div 
+                      className="p-2.5 rounded-2xl bg-gradient-to-b from-neutral-900/95 via-neutral-950/90 to-neutral-950 border border-neutral-800 space-y-2 shadow-sm relative overflow-hidden" 
+                      id="order-tracking-summary-widget"
+                    >
+                      {/* Top Bar: Title & Live Refreshing Indicator */}
+                      <div className="flex items-center justify-between text-[10.5px]">
+                        <div className="flex items-center gap-1.5 font-bold text-neutral-300">
+                          <Activity className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Fulfillment Summary</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[9.5px]">
+                          {isRefreshingStatus ? (
+                            <span className="text-amber-400 font-semibold flex items-center gap-1 animate-pulse">
+                              <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                              <span>Refreshing counts...</span>
+                            </span>
+                          ) : (
+                            <span className="text-neutral-500 font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Live Counts</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2 Dynamic Counter KPI Cards: In-Transit vs Delivered */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* In-Transit Orders Counter Card */}
+                        <div
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setHistoryStatusFilter(historyStatusFilter === 'Dispatched' ? 'All' : 'Dispatched');
+                          }}
+                          className={`p-2 rounded-xl transition-all cursor-pointer border select-none ${
+                            historyStatusFilter === 'Dispatched'
+                              ? 'bg-purple-950/70 border-purple-500 text-purple-200 ring-1 ring-purple-400/50 shadow-md shadow-purple-950/50'
+                              : 'bg-purple-950/25 hover:bg-purple-950/45 border-purple-500/30 hover:border-purple-400/60 text-purple-300'
+                          }`}
+                          id="summary-in-transit-counter-card"
+                          title="Click to filter by In-Transit (Dispatched) orders"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span>🚚</span>
+                              <span>In-Transit</span>
+                            </span>
+                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              Dispatched
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between">
+                            <motion.span
+                              key={`in-transit-${inTransitCount}`}
+                              initial={{ scale: 1.25, opacity: 0.8 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                              className={`text-xl font-black font-mono tracking-tight ${
+                                inTransitCount > 0 ? 'text-purple-300' : 'text-neutral-500'
+                              }`}
+                            >
+                              {inTransitCount}
+                            </motion.span>
+                            <span className="text-[9.5px] text-purple-400/80">
+                              {inTransitCount === 1 ? 'order' : 'orders'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Delivered Orders Counter Card */}
+                        <div
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setHistoryStatusFilter(historyStatusFilter === 'Delivered' ? 'All' : 'Delivered');
+                          }}
+                          className={`p-2 rounded-xl transition-all cursor-pointer border select-none ${
+                            historyStatusFilter === 'Delivered'
+                              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200 ring-1 ring-emerald-400/50 shadow-md shadow-emerald-950/50'
+                              : 'bg-emerald-950/25 hover:bg-emerald-950/45 border-emerald-500/30 hover:border-emerald-400/60 text-emerald-300'
+                          }`}
+                          id="summary-delivered-counter-card"
+                          title="Click to filter by Delivered orders"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span>✅</span>
+                              <span>Delivered</span>
+                            </span>
+                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Completed
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between">
+                            <motion.span
+                              key={`delivered-${deliveredCount}`}
+                              initial={{ scale: 1.25, opacity: 0.8 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                              className={`text-xl font-black font-mono tracking-tight ${
+                                deliveredCount > 0 ? 'text-emerald-300' : 'text-neutral-500'
+                              }`}
+                            >
+                              {deliveredCount}
+                            </motion.span>
+                            <span className="text-[9.5px] text-emerald-400/80">
+                              {deliveredCount === 1 ? 'order' : 'orders'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dynamic In-Transit vs Delivered Ratio Bar */}
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-[9.5px] text-neutral-400">
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-purple-400">{inTransitCount} In-Transit</span>
+                            <span className="text-neutral-600">vs</span>
+                            <span className="font-semibold text-emerald-400">{deliveredCount} Delivered</span>
+                          </span>
+                          <span className="text-[9px] text-neutral-500">
+                            {trackingHistory.length} tracked total
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden flex gap-0.5 p-0.5 border border-neutral-800">
+                          <div
+                            className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${trackingHistory.length > 0 ? (inTransitCount / trackingHistory.length) * 100 : 0}%`,
+                              minWidth: inTransitCount > 0 ? '8px' : '0px'
+                            }}
+                            title={`${inTransitCount} In-Transit`}
+                          />
+                          <div
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${trackingHistory.length > 0 ? (deliveredCount / trackingHistory.length) * 100 : 0}%`,
+                              minWidth: deliveredCount > 0 ? '8px' : '0px'
+                            }}
+                            title={`${deliveredCount} Delivered`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Quick-Filter Toggle Bar */}
                   {trackingHistory.length > 0 && (
@@ -1642,6 +1884,21 @@ Visit the online catalog or walk in to check batch verification and current in-s
                           <span>Clear History</span>
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Auto-refresh Status Hint Strip */}
+                  {trackingHistory.length > 0 && (
+                    <div className="flex items-center justify-between text-[9.5px] text-neutral-500 pt-0.5" id="auto-refresh-status-hint">
+                      <span className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${autoRefreshEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-neutral-600'}`} />
+                        <span>
+                          {autoRefreshEnabled
+                            ? `Auto-checking real-time status in ${autoRefreshSecondsLeft}s`
+                            : 'Auto-refresh is off (tap "Auto" toggle to activate 60s cycle)'}
+                        </span>
+                      </span>
+                      <span className="text-neutral-600">60s Live Sync</span>
                     </div>
                   )}
                 </div>

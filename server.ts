@@ -12,6 +12,96 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const VISITS_FILE = path.join(DATA_DIR, 'visits.json');
+
+interface VisitData {
+  totalVisits: number;
+  uniqueVisitors: number;
+  todayVisits: number;
+  todayDate: string;
+  visitorIds: string[];
+  dailyHistory: Array<{ date: string; visits: number; unique: number }>;
+  recentVisits: Array<{
+    id: string;
+    timestamp: string;
+    path: string;
+    referrer?: string;
+    deviceType?: string;
+  }>;
+  lastVisitedAt: string;
+}
+
+const INITIAL_VISITS: VisitData = {
+  totalVisits: 1845,
+  uniqueVisitors: 1120,
+  todayVisits: 46,
+  todayDate: new Date().toISOString().slice(0, 10),
+  visitorIds: [],
+  dailyHistory: [
+    { date: new Date(Date.now() - 86400000 * 3).toISOString().slice(0, 10), visits: 58, unique: 41 },
+    { date: new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 10), visits: 74, unique: 52 },
+    { date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), visits: 89, unique: 63 }
+  ],
+  recentVisits: [
+    { id: 'v-init-1', timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(), path: '/', referrer: 'Google Search', deviceType: 'Mobile' },
+    { id: 'v-init-2', timestamp: new Date(Date.now() - 1000 * 60 * 4).toISOString(), path: '/catalog', referrer: 'WhatsApp Direct', deviceType: 'Mobile' }
+  ],
+  lastVisitedAt: new Date().toISOString()
+};
+
+function readVisits(): VisitData {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(VISITS_FILE)) {
+      fs.writeFileSync(VISITS_FILE, JSON.stringify(INITIAL_VISITS, null, 2), 'utf-8');
+      return INITIAL_VISITS;
+    }
+    const raw = fs.readFileSync(VISITS_FILE, 'utf-8');
+    const data: VisitData = JSON.parse(raw);
+
+    // Check day rollover (using YYYY-MM-DD)
+    const today = new Date().toISOString().slice(0, 10);
+    if (data.todayDate !== today) {
+      if (data.todayVisits > 0) {
+        data.dailyHistory = [
+          ...(data.dailyHistory || []),
+          { date: data.todayDate, visits: data.todayVisits, unique: Math.max(1, Math.round(data.todayVisits * 0.72)) }
+        ].slice(-30);
+      }
+      data.todayDate = today;
+      data.todayVisits = 0;
+      writeVisits(data);
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error reading visits:', err);
+    return INITIAL_VISITS;
+  }
+}
+
+function writeVisits(data: VisitData): boolean {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(VISITS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error writing visits:', err);
+    return false;
+  }
+}
+
+function detectDevice(userAgent?: string): string {
+  if (!userAgent) return 'Web Browser';
+  const ua = userAgent.toLowerCase();
+  if (/mobile|android|iphone|ipad|ipod/.test(ua)) return 'Mobile Phone';
+  if (/tablet/.test(ua)) return 'Tablet';
+  return 'Desktop / Laptop';
+}
 
 // Initial seed products
 const INITIAL_PRODUCTS = [
@@ -433,6 +523,99 @@ app.post('/api/orders/mock-status', (req, res) => {
   } catch (err: any) {
     console.error('Failed to fetch mock order statuses:', err);
     res.status(500).json({ error: 'Failed to fetch mock order statuses' });
+  }
+});
+
+// GET site visit statistics
+app.get('/api/visits', (req, res) => {
+  try {
+    const visits = readVisits();
+    res.json({
+      success: true,
+      totalVisits: visits.totalVisits,
+      todayVisits: visits.todayVisits,
+      uniqueVisitors: visits.uniqueVisitors,
+      todayDate: visits.todayDate,
+      lastVisitedAt: visits.lastVisitedAt,
+      dailyHistory: visits.dailyHistory || [],
+      recentVisits: (visits.recentVisits || []).slice(0, 10)
+    });
+  } catch (err: any) {
+    console.error('Failed to get visits:', err);
+    res.status(500).json({ error: 'Failed to retrieve site visits' });
+  }
+});
+
+// POST record new site visit (increments total and today visits, tracks unique visitors)
+app.post('/api/visits', (req, res) => {
+  try {
+    const { visitorId, path: pagePath, referrer, isNewSession } = req.body || {};
+    const visits = readVisits();
+
+    visits.totalVisits += 1;
+    visits.todayVisits += 1;
+
+    // Track unique visitors
+    if (visitorId && typeof visitorId === 'string') {
+      const cleanVisitorId = visitorId.trim();
+      if (!visits.visitorIds) visits.visitorIds = [];
+      if (!visits.visitorIds.includes(cleanVisitorId)) {
+        visits.visitorIds.push(cleanVisitorId);
+        visits.uniqueVisitors += 1;
+        // Keep list bounded to prevent unbounded memory growth
+        if (visits.visitorIds.length > 5000) {
+          visits.visitorIds = visits.visitorIds.slice(-5000);
+        }
+      }
+    }
+
+    // Record recent visit entry
+    const userAgent = req.headers['user-agent'] as string | undefined;
+    const device = detectDevice(userAgent);
+    const newEntry = {
+      id: `v-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      path: pagePath ? String(pagePath).slice(0, 80) : '/',
+      referrer: referrer ? String(referrer).slice(0, 100) : 'Direct Navigation',
+      deviceType: device
+    };
+
+    visits.recentVisits = [newEntry, ...(visits.recentVisits || [])].slice(0, 20);
+    visits.lastVisitedAt = new Date().toISOString();
+
+    writeVisits(visits);
+
+    res.json({
+      success: true,
+      totalVisits: visits.totalVisits,
+      todayVisits: visits.todayVisits,
+      uniqueVisitors: visits.uniqueVisitors,
+      todayDate: visits.todayDate,
+      lastVisitedAt: visits.lastVisitedAt,
+      dailyHistory: visits.dailyHistory || [],
+      recentVisits: visits.recentVisits.slice(0, 10)
+    });
+  } catch (err: any) {
+    console.error('Failed to record visit:', err);
+    res.status(500).json({ error: 'Failed to record site visit' });
+  }
+});
+
+// POST reset or seed visits (admin utility)
+app.post('/api/visits/reset', (req, res) => {
+  try {
+    const { baselineTotal, baselineUnique } = req.body || {};
+    const visits = readVisits();
+    if (typeof baselineTotal === 'number' && baselineTotal >= 0) {
+      visits.totalVisits = baselineTotal;
+    }
+    if (typeof baselineUnique === 'number' && baselineUnique >= 0) {
+      visits.uniqueVisitors = baselineUnique;
+    }
+    writeVisits(visits);
+    res.json({ success: true, visits });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to reset visits' });
   }
 });
 

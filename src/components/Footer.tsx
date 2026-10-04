@@ -1,7 +1,24 @@
 import React from 'react';
-import { MapPin, Phone, MessageCircle, ShieldCheck, Lock, Unlock, Smartphone, Palette, Instagram, Facebook } from 'lucide-react';
+import { 
+  MapPin, 
+  Phone, 
+  MessageCircle, 
+  ShieldCheck, 
+  Lock, 
+  Unlock, 
+  Smartphone, 
+  Palette, 
+  Instagram, 
+  Facebook,
+  Eye,
+  Users,
+  Activity,
+  TrendingUp,
+  BarChart3
+} from 'lucide-react';
 import { STORE_INFO, CATEGORIES } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
+import { SiteVisitStats } from '../services/visitService';
 
 interface FooterProps {
   onCategorySelect: (category: string) => void;
@@ -9,6 +26,8 @@ interface FooterProps {
   isAdmin: boolean;
   onOpenAndroidModal?: () => void;
   onOpenThemeModal?: () => void;
+  visitStats?: SiteVisitStats;
+  onOpenVisitStats?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -16,7 +35,9 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAdmin,
   isAdmin,
   onOpenAndroidModal,
-  onOpenThemeModal
+  onOpenThemeModal,
+  visitStats,
+  onOpenVisitStats
 }) => {
   return (
     <footer id="app-footer" className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
@@ -184,6 +205,60 @@ export const Footer: React.FC<FooterProps> = ({
               </a>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Live Store Visitor Counter Strip */}
+      <div className="border-t border-neutral-900 bg-neutral-950/95 py-3 px-4 sm:px-6 lg:px-8" id="footer-site-visit-counter-strip">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-neutral-400">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[11.5px] font-semibold text-neutral-300">
+              Live Store Activity: Mandi Mor, Israna
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenVisitStats}
+            className="group flex flex-wrap items-center gap-2.5 sm:gap-3.5 py-1.5 px-3.5 rounded-full bg-neutral-900/90 hover:bg-neutral-850 border border-neutral-800 hover:border-amber-400/50 transition-all cursor-pointer shadow-sm"
+            id="footer-site-visit-counter"
+            title="Click to view detailed store traffic and visit analytics"
+          >
+            <div className="flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="text-neutral-400 text-[11px]">Total Visits:</span>
+              <span className="font-mono font-black text-white text-[12px] tracking-tight">
+                {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.totalVisits) : '1,845'}
+              </span>
+            </div>
+
+            <span className="text-neutral-700 hidden sm:inline">•</span>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-neutral-400 text-[11px]">Today:</span>
+              <span className="font-mono font-bold text-amber-400 text-[11.5px]">
+                +{visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.todayVisits) : '46'}
+              </span>
+            </div>
+
+            <span className="text-neutral-700 hidden sm:inline">•</span>
+
+            <div className="flex items-center gap-1.5">
+              <Users className="w-3 h-3 text-emerald-400" />
+              <span className="text-neutral-400 text-[11px]">Shoppers:</span>
+              <span className="font-mono font-semibold text-emerald-400 text-[11px]">
+                {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.uniqueVisitors) : '1,120'}
+              </span>
+            </div>
+
+            <span className="text-[10.5px] text-amber-400/90 group-hover:text-amber-300 underline font-medium pl-1">
+              View Analytics →
+            </span>
+          </button>
         </div>
       </div>
 

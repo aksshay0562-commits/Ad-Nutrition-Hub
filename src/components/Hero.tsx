@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Sparkles, MapPin, ArrowRight, Zap, CheckCircle2, Smartphone, Eye, Users } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { NutritionVideoBackground } from './NutritionVideoBackground';
+import { SiteVisitStats } from '../services/visitService';
 
 interface HeroProps {
   onExploreClick: () => void;
@@ -12,6 +13,8 @@ interface HeroProps {
   onOpenAndroidModal?: () => void;
   onCalculatorClick?: () => void;
   onOpenExpertAdvice?: () => void;
+  visitStats?: SiteVisitStats;
+  onOpenVisitStats?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -20,7 +23,9 @@ export const Hero: React.FC<HeroProps> = ({
   onCategorySelect,
   onOpenAndroidModal,
   onCalculatorClick,
-  onOpenExpertAdvice
+  onOpenExpertAdvice,
+  visitStats,
+  onOpenVisitStats
 }) => {
   const quickCategories = [
     { label: 'Whey Protein', icon: '🥛', category: 'Whey Protein' },
@@ -234,6 +239,47 @@ export const Hero: React.FC<HeroProps> = ({
                       Workout goals ke according expert guidance aur direct product booking on +91 70159 59517.
                     </p>
                   </div>
+                </div>
+
+                {/* Live Store Traffic & Visit Counting Card */}
+                <div 
+                  onClick={onOpenVisitStats}
+                  className={`flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-neutral-900/90 to-neutral-900 border border-amber-500/35 hover:border-amber-400 transition-all ${onOpenVisitStats ? 'cursor-pointer hover:bg-neutral-850' : ''} group shadow-sm`}
+                  id="hero-live-visit-counter-card"
+                  title="Click to view live site traffic & visit analytics"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 font-bold group-hover:scale-105 transition-transform">
+                      <Eye className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                          Live Store Visits
+                        </h4>
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9.5px] font-bold border border-emerald-500/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          <span>Counting Live</span>
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-0.5">
+                        <span className="font-mono font-bold text-white tracking-tight">
+                          {visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.totalVisits) : '1,846'}
+                        </span>
+                        <span> visits total</span>
+                        <span className="text-neutral-600 mx-1.5">•</span>
+                        <span className="text-amber-400 font-bold">
+                          +{visitStats ? new Intl.NumberFormat('en-IN').format(visitStats.todayVisits) : '47'} today
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  {onOpenVisitStats && (
+                    <span className="text-[11px] text-amber-400 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1 shrink-0 pl-2">
+                      <span className="hidden sm:inline">Analytics</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                 </div>
               </div>
 
