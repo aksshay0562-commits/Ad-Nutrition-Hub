@@ -330,6 +330,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   const selectedLine: WhatsAppLine = QUERY_TYPE_CONFIG[queryType].line;
 
   const handleSelectQueryType = (type: WhatsAppQueryType) => {
+    triggerHaptic('light');
     setQueryType(type);
     if (typeof window !== 'undefined') {
       localStorage.setItem('ad_wa_preferred_query', type);
@@ -858,9 +859,10 @@ Visit the online catalog or walk in to check batch verification and current in-s
         <AnimatePresence>
           {showSettingsMenu && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 8, transition: { duration: 0.15 } }}
+              initial={{ opacity: 0, y: 18, scale: 0.96, filter: 'blur(5px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 14, scale: 0.96, filter: 'blur(4px)', transition: { duration: 0.16, ease: 'easeIn' } }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
               className="bg-neutral-900/95 backdrop-blur-md border border-neutral-700/80 rounded-2xl shadow-2xl p-3.5 w-80 sm:w-88 space-y-3 origin-bottom-right"
               id="whatsapp-settings-menu"
             >
@@ -895,12 +897,21 @@ Visit the online catalog or walk in to check batch verification and current in-s
                   <span className="text-[11px] font-bold text-neutral-300">
                     Query Routing Mode
                   </span>
-                  <span className="text-[10px] text-neutral-400 flex items-center gap-1 font-semibold">
-                    <span className={`w-2 h-2 rounded-full ${
-                      queryType === 'orders' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-pulse'
-                    }`} />
-                    {queryType === 'orders' ? 'Orders Active' : 'General Active'}
-                  </span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={queryType}
+                      initial={{ opacity: 0.3, filter: 'blur(3px)', y: 2 }}
+                      animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                      exit={{ opacity: 0.3, filter: 'blur(3px)', y: -2 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="text-[10px] text-neutral-400 flex items-center gap-1 font-semibold"
+                    >
+                      <span className={`w-2 h-2 rounded-full ${
+                        queryType === 'orders' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-pulse'
+                      }`} />
+                      {queryType === 'orders' ? 'Orders Active' : 'General Active'}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
 
                 <div 
@@ -955,120 +966,149 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 </div>
               </div>
 
-              {/* Interactive Line Selection Cards */}
-              <div className="space-y-2 pt-0.5">
-                {/* Line 1 Card (Orders) */}
-                <div
-                  onClick={() => handleSelectQueryType('orders')}
-                  className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
+              {/* Interactive Line Selection Cards with blur transition effect when toggling modes */}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={queryType}
+                  initial={{ opacity: 0.45, filter: 'blur(5px)', y: 4 }}
+                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                  exit={{ opacity: 0.45, filter: 'blur(5px)', y: -4 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-2 pt-0.5"
+                  id="whatsapp-mode-transition-container"
+                >
+                  {/* Subtle active mode indicator pill */}
+                  <div className={`px-2.5 py-1.5 rounded-xl text-[10.5px] border flex items-center justify-between transition-colors ${
                     queryType === 'orders'
-                      ? 'bg-neutral-800/90 border-amber-500/70 ring-1 ring-amber-400/40 shadow-sm'
-                      : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
-                  }`}
-                  id="settings-line1-card"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
-                        queryType === 'orders'
-                          ? 'bg-amber-400 text-neutral-950'
-                          : 'bg-neutral-800 text-neutral-400'
-                      }`}>
-                        1
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors">
-                            {STORE_INFO.phone}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                            Orders & Stock
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-neutral-400">
-                          Product bookings, current inventory & pricing
-                        </p>
-                      </div>
-                    </div>
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                  }`}>
+                    <span className="flex items-center gap-1.5 font-medium truncate">
+                      <span>{queryType === 'orders' ? '📦' : '💬'}</span>
+                      <span className="truncate">
+                        {queryType === 'orders'
+                          ? 'Orders Mode: Fast-tracking inventory & bookings'
+                          : 'General Mode: Supplement dosage & store queries'}
+                      </span>
+                    </span>
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-neutral-900/80 text-white shrink-0 font-mono">
+                      {queryType === 'orders' ? 'Line 1' : 'Line 2'}
+                    </span>
+                  </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                      {queryType === 'orders' && (
-                        <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                      )}
-                      <a
-                        href={buildWhatsAppUrl({ queryType: 'orders' })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowSettingsMenu(false);
-                        }}
-                        className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
-                        title="Direct chat on Line 1"
-                      >
-                        <MessageCircle className="w-3 h-3 fill-neutral-950" />
-                        <span>Chat</span>
-                      </a>
+                  {/* Line 1 Card (Orders) */}
+                  <div
+                    onClick={() => handleSelectQueryType('orders')}
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                      queryType === 'orders'
+                        ? 'bg-neutral-800/90 border-amber-500/70 ring-1 ring-amber-400/40 shadow-sm'
+                        : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                    id="settings-line1-card"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                          queryType === 'orders'
+                            ? 'bg-amber-400 text-neutral-950'
+                            : 'bg-neutral-800 text-neutral-400'
+                        }`}>
+                          1
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors">
+                              {STORE_INFO.phone}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30">
+                              Orders & Stock
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-neutral-400">
+                            Product bookings, current inventory & pricing
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                        {queryType === 'orders' && (
+                          <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                        )}
+                        <a
+                          href={buildWhatsAppUrl({ queryType: 'orders' })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSettingsMenu(false);
+                          }}
+                          className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
+                          title="Direct chat on Line 1"
+                        >
+                          <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                          <span>Chat</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Line 2 Card (General) */}
-                <div
-                  onClick={() => handleSelectQueryType('general')}
-                  className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
-                    queryType === 'general'
-                      ? 'bg-neutral-800/90 border-emerald-500/70 ring-1 ring-emerald-400/40 shadow-sm'
-                      : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
-                  }`}
-                  id="settings-line2-card"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
-                        queryType === 'general'
-                          ? 'bg-emerald-400 text-neutral-950'
-                          : 'bg-neutral-800 text-neutral-400'
-                      }`}>
-                        2
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                            {STORE_INFO.phone2}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-400/20 text-emerald-400 border border-emerald-400/30">
-                            General Enquiry
-                          </span>
+                  {/* Line 2 Card (General) */}
+                  <div
+                    onClick={() => handleSelectQueryType('general')}
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                      queryType === 'general'
+                        ? 'bg-neutral-800/90 border-emerald-500/70 ring-1 ring-emerald-400/40 shadow-sm'
+                        : 'bg-neutral-950/70 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                    id="settings-line2-card"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                          queryType === 'general'
+                            ? 'bg-emerald-400 text-neutral-950'
+                            : 'bg-neutral-800 text-neutral-400'
+                        }`}>
+                          2
                         </div>
-                        <p className="text-[10px] text-neutral-400">
-                          Supplement advice, dosage, timing & shop queries
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
+                              {STORE_INFO.phone2}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-400/20 text-emerald-400 border border-emerald-400/30">
+                              General Enquiry
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-neutral-400">
+                            Supplement advice, dosage, timing & shop queries
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                      {queryType === 'general' && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      )}
-                      <a
-                        href={buildWhatsAppUrl({ queryType: 'general' })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowSettingsMenu(false);
-                        }}
-                        className="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
-                        title="Direct chat on Line 2"
-                      >
-                        <MessageCircle className="w-3 h-3 fill-neutral-950" />
-                        <span>Chat</span>
-                      </a>
+                      <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                        {queryType === 'general' && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        )}
+                        <a
+                          href={buildWhatsAppUrl({ queryType: 'general' })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSettingsMenu(false);
+                          }}
+                          className="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm"
+                          title="Direct chat on Line 2"
+                        >
+                          <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                          <span>Chat</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </AnimatePresence>
 
               {/* Structured Nutrition Expert Advice Banner */}
               {onOpenExpertAdvice && (

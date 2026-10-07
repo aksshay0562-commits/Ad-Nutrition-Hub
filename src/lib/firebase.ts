@@ -51,8 +51,17 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const isQuota = errMsg.includes('Quota limit exceeded') || errMsg.includes('Quota exceeded') || (error as any)?.code === 'resource-exhausted';
+  if (isQuota && typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem('ad_nutrition_quota_exceeded', 'true');
+      localStorage.setItem('ad_nutrition_quota_exceeded_timestamp', Date.now().toString());
+    } catch {}
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,

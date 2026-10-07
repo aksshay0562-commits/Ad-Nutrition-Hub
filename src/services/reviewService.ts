@@ -9,6 +9,7 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { isFirestoreQuotaExceeded, setFirestoreQuotaExceeded, isFirestoreQuotaError } from './productService';
 import { Review } from '../types';
 
 const REVIEWS_SUBCOLLECTION = 'reviews';
@@ -54,23 +55,29 @@ const DEFAULT_SAMPLE_REVIEWS: Record<string, Omit<Review, 'productId'>[]> = {
 
 // Fetch product reviews from Firestore with fallback to cached/initial reviews
 export async function fetchProductReviews(productId: string): Promise<Review[]> {
-  try {
-    const reviewsRef = collection(db, 'products', productId, REVIEWS_SUBCOLLECTION);
-    const q = query(reviewsRef, orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
-    
-    if (!snap.empty) {
-      const list: Review[] = [];
-      snap.forEach((docSnap) => {
-        list.push({ ...(docSnap.data() as Review), id: docSnap.id });
-      });
-      try {
-        localStorage.setItem(`${CACHE_REVIEWS_PREFIX}${productId}`, JSON.stringify(list));
-      } catch {}
-      return list;
+  // If quota is exceeded, bypass Firestore read to prevent quota error logs
+  if (!isFirestoreQuotaExceeded()) {
+    try {
+      const reviewsRef = collection(db, 'products', productId, REVIEWS_SUBCOLLECTION);
+      const q = query(reviewsRef, orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      
+      if (!snap.empty) {
+        const list: Review[] = [];
+        snap.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as Review), id: docSnap.id });
+        });
+        try {
+          localStorage.setItem(`${CACHE_REVIEWS_PREFIX}${productId}`, JSON.stringify(list));
+        } catch {}
+        return list;
+      }
+    } catch (err: any) {
+      if (isFirestoreQuotaError(err)) {
+        setFirestoreQuotaExceeded(true);
+      }
+      console.warn(`Firestore reviews notice for ${productId}, using cached reviews:`, err);
     }
-  } catch (err: any) {
-    console.warn(`Firestore reviews fetch error for ${productId}, attempting fallback:`, err);
   }
 
   // Fallback to local storage cache
@@ -98,36 +105,55 @@ export function subscribeToProductReviews(
   onUpdate: (reviews: Review[]) => void,
   onError?: (err: Error) => void
 ): () => void {
-  const reviewsRef = collection(db, 'products', productId, REVIEWS_SUBCOLLECTION);
-  const q = query(reviewsRef, orderBy('createdAt', 'desc'));
+  if (isFirestoreQuotaExceeded()) {
+    fetchProductReviews(productId).then(onUpdate).catch(() => {});
+    return () => {};
+  }
 
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const list: Review[] = [];
-      snapshot.forEach((docSnap) => {
-        list.push({ ...(docSnap.data() as Review), id: docSnap.id });
-      });
+  try {
+    const reviewsRef = collection(db, 'products', productId, REVIEWS_SUBCOLLECTION);
+    const q = query(reviewsRef, orderBy('createdAt', 'desc'));
 
-      if (list.length > 0) {
-        try {
-          localStorage.setItem(`${CACHE_REVIEWS_PREFIX}${productId}`, JSON.stringify(list));
-        } catch {}
-        onUpdate(list);
-      } else {
-        // If empty in Firestore, check if we have defaults
-        if (DEFAULT_SAMPLE_REVIEWS[productId]) {
-          onUpdate(DEFAULT_SAMPLE_REVIEWS[productId].map(r => ({ ...r, productId })));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: Review[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as Review), id: docSnap.id });
+        });
+
+        if (list.length > 0) {
+          try {
+            localStorage.setItem(`${CACHE_REVIEWS_PREFIX}${productId}`, JSON.stringify(list));
+          } catch {}
+          onUpdate(list);
         } else {
-          onUpdate([]);
+          // If empty in Firestore, check if we have defaults
+          if (DEFAULT_SAMPLE_REVIEWS[productId]) {
+            onUpdate(DEFAULT_SAMPLE_REVIEWS[productId].map(r => ({ ...r, productId })));
+          } else {
+            onUpdate([]);
+          }
+        }
+      },
+      (error) => {
+        if (isFirestoreQuotaError(error)) {
+          setFirestoreQuotaExceeded(true);
+          fetchProductReviews(productId).then(onUpdate).catch(() => {});
+          return;
+        }
+        if ((error as any)?.code === 'permission-denied') {
+          handleFirestoreError(error, OperationType.GET, `products/${productId}/${REVIEWS_SUBCOLLECTION}`);
+        } else {
+          console.warn(`Firestore onSnapshot reviews notice for ${productId}:`, error);
+          if (onError) onError(error);
         }
       }
-    },
-    (error) => {
-      console.warn(`Firestore onSnapshot reviews error for ${productId}:`, error);
-      if (onError) onError(error);
-    }
-  );
+    );
+  } catch (initErr) {
+    fetchProductReviews(productId).then(onUpdate).catch(() => {});
+    return () => {};
+  }
 }
 
 // Add a new review to Firestore under products/{productId}/reviews/{reviewId}
@@ -152,7 +178,7 @@ export async function addProductReview(
     const docRef = doc(db, 'products', productId, REVIEWS_SUBCOLLECTION, newId);
     await setDoc(docRef, payload);
   } catch (err: any) {
-    console.error('Failed to write review to Firestore:', err);
+    console.warn('Notice writing review to Firestore, preserved in local storage:', err);
     // Also save in local cache as fallback so user sees their review immediately
     try {
       const cached = localStorage.getItem(`${CACHE_REVIEWS_PREFIX}${productId}`);
@@ -160,7 +186,11 @@ export async function addProductReview(
       const updatedList = [payload, ...currentList.filter(r => r.id !== newId)];
       localStorage.setItem(`${CACHE_REVIEWS_PREFIX}${productId}`, JSON.stringify(updatedList));
     } catch {}
-    handleFirestoreError(err, OperationType.CREATE, path);
+    if (isFirestoreQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    } else if ((err as any)?.code === 'permission-denied') {
+      handleFirestoreError(err, OperationType.CREATE, path);
+    }
   }
 
   // Update local cache
@@ -181,8 +211,12 @@ export async function deleteProductReview(productId: string, reviewId: string): 
     const docRef = doc(db, 'products', productId, REVIEWS_SUBCOLLECTION, reviewId);
     await deleteDoc(docRef);
   } catch (err: any) {
-    console.error('Failed to delete review in Firestore:', err);
-    handleFirestoreError(err, OperationType.DELETE, path);
+    console.warn('Notice deleting review in Firestore, updating local cache:', err);
+    if (isFirestoreQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    } else if ((err as any)?.code === 'permission-denied') {
+      handleFirestoreError(err, OperationType.DELETE, path);
+    }
   }
 
   // Remove from local cache

@@ -16,6 +16,66 @@ import { compressImage } from '../utils/imageCompressor';
 const CACHE_KEY = 'ad_nutrition_products_cache_v1';
 const PRODUCTS_COLLECTION = 'products';
 
+const QUOTA_KEY = 'ad_nutrition_quota_exceeded_timestamp';
+const QUOTA_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export function isFirestoreQuotaError(err: unknown): boolean {
+  if (!err) return false;
+  const errMsg = err instanceof Error ? err.message : String(err);
+  const code = (err as any)?.code || '';
+  return (
+    code === 'resource-exhausted' ||
+    errMsg.includes('Quota limit exceeded') ||
+    errMsg.includes('Quota exceeded') ||
+    errMsg.includes('Free daily read units per project')
+  );
+}
+
+let firestoreQuotaExceededState = typeof window !== 'undefined' && (
+  sessionStorage.getItem('ad_nutrition_quota_exceeded') === 'true' ||
+  Boolean(localStorage.getItem(QUOTA_KEY))
+);
+
+export function isFirestoreQuotaExceeded(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (firestoreQuotaExceededState) return true;
+  try {
+    const sessionFlag = sessionStorage.getItem('ad_nutrition_quota_exceeded');
+    if (sessionFlag === 'true') {
+      firestoreQuotaExceededState = true;
+      return true;
+    }
+    const stored = localStorage.getItem(QUOTA_KEY);
+    if (!stored) return false;
+    const ts = parseInt(stored, 10);
+    if (isNaN(ts) || Date.now() - ts < QUOTA_TTL_MS) {
+      firestoreQuotaExceededState = true;
+      return true;
+    }
+    localStorage.removeItem(QUOTA_KEY);
+    sessionStorage.removeItem('ad_nutrition_quota_exceeded');
+    firestoreQuotaExceededState = false;
+    return false;
+  } catch {
+    return firestoreQuotaExceededState;
+  }
+}
+
+export function setFirestoreQuotaExceeded(val: boolean): void {
+  firestoreQuotaExceededState = val;
+  if (typeof window !== 'undefined') {
+    try {
+      if (val) {
+        localStorage.setItem(QUOTA_KEY, Date.now().toString());
+        sessionStorage.setItem('ad_nutrition_quota_exceeded', 'true');
+      } else {
+        localStorage.removeItem(QUOTA_KEY);
+        sessionStorage.removeItem('ad_nutrition_quota_exceeded');
+      }
+    } catch {}
+  }
+}
+
 /**
  * Strips out any keys with `undefined` values so Firestore setDoc / updateDoc
  * never fails with: "Function setDoc() called with invalid data. Unsupported field value: undefined"
@@ -36,6 +96,9 @@ export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
 
 // Seed initial products into Firestore if the collection is empty
 export async function seedInitialProductsIfEmpty(): Promise<Product[]> {
+  if (isFirestoreQuotaExceeded()) {
+    return INITIAL_PRODUCTS;
+  }
   try {
     const colRef = collection(db, PRODUCTS_COLLECTION);
     const snap = await getDocs(colRef);
@@ -58,7 +121,10 @@ export async function seedInitialProductsIfEmpty(): Promise<Product[]> {
       });
       return items;
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (isFirestoreQuotaError(error)) {
+      setFirestoreQuotaExceeded(true);
+    }
     console.warn('Could not seed/query Firestore products on startup:', error);
     return INITIAL_PRODUCTS;
   }
@@ -76,28 +142,33 @@ export function deduplicateProducts(list: Product[]): Product[] {
 
 // Fetch products with Firestore priority and fallback to cache / local
 export async function fetchProducts(): Promise<Product[]> {
-  // 1. Try Firestore
-  try {
-    const colRef = collection(db, PRODUCTS_COLLECTION);
-    const snap = await getDocs(colRef);
-    if (!snap.empty) {
-      const list: Product[] = [];
-      snap.forEach((docSnap) => {
-        list.push({ ...(docSnap.data() as Product), id: docSnap.id });
-      });
-      const deduped = deduplicateProducts(list);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
-      return deduped;
-    } else {
-      // Empty in Firestore, seed defaults
-      const seeded = await seedInitialProductsIfEmpty();
-      return deduplicateProducts(seeded);
-    }
-  } catch (err: any) {
-    if (err?.code === 'unavailable') {
-      console.warn('Firestore offline: fetching from local cache or fallback.');
-    } else {
-      console.warn('Firestore fetch error, falling back to API / cache:', err);
+  // 1. Try Firestore if quota is not exceeded
+  if (!isFirestoreQuotaExceeded()) {
+    try {
+      const colRef = collection(db, PRODUCTS_COLLECTION);
+      const snap = await getDocs(colRef);
+      if (!snap.empty) {
+        const list: Product[] = [];
+        snap.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as Product), id: docSnap.id });
+        });
+        const deduped = deduplicateProducts(list);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+        return deduped;
+      } else {
+        // Empty in Firestore, seed defaults
+        const seeded = await seedInitialProductsIfEmpty();
+        return deduplicateProducts(seeded);
+      }
+    } catch (err: any) {
+      if (isFirestoreQuotaError(err)) {
+        setFirestoreQuotaExceeded(true);
+        console.warn('Firestore quota limit reached. Gracefully falling back to local cache & server API.');
+      } else if (err?.code === 'unavailable') {
+        console.warn('Firestore offline: fetching from local cache or fallback.');
+      } else {
+        console.warn('Firestore fetch error, falling back to API / cache:', err);
+      }
     }
   }
 
@@ -137,33 +208,58 @@ export function subscribeToProducts(
   onUpdate: (products: Product[]) => void,
   onError?: (err: Error) => void
 ): () => void {
-  const colRef = collection(db, PRODUCTS_COLLECTION);
-  return onSnapshot(
-    colRef,
-    (snapshot) => {
-      const prods: Product[] = [];
-      snapshot.forEach((docSnap) => {
-        prods.push({ ...(docSnap.data() as Product), id: docSnap.id });
-      });
-      const deduped = deduplicateProducts(prods);
-      if (deduped.length > 0) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
-        onUpdate(deduped);
+  // If quota was already exceeded, avoid attaching onSnapshot listener to prevent repeated quota errors
+  if (isFirestoreQuotaExceeded()) {
+    console.info('Firestore operating with cached catalog due to quota limit.');
+    return () => {};
+  }
+
+  try {
+    const colRef = collection(db, PRODUCTS_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const prods: Product[] = [];
+        snapshot.forEach((docSnap) => {
+          prods.push({ ...(docSnap.data() as Product), id: docSnap.id });
+        });
+        const deduped = deduplicateProducts(prods);
+        if (deduped.length > 0) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+          onUpdate(deduped);
+        }
+      },
+      (error) => {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        const isQuota = isFirestoreQuotaError(error);
+
+        if (isQuota) {
+          setFirestoreQuotaExceeded(true);
+          console.warn('Firestore onSnapshot quota reached: switched to offline/cache mode.');
+          fetchProducts().then(onUpdate).catch(() => {});
+          return;
+        }
+
+        // If client is temporarily offline or reconnecting, maintain local cache
+        if ((error as any)?.code === 'unavailable') {
+          console.warn('Firestore onSnapshot operating in offline mode.');
+          return;
+        }
+
+        if ((error as any)?.code === 'permission-denied') {
+          handleFirestoreError(error, OperationType.GET, PRODUCTS_COLLECTION);
+        } else {
+          console.warn('Firestore onSnapshot notice:', errMsg);
+          if (onError) {
+            onError(error instanceof Error ? error : new Error(errMsg));
+          }
+        }
       }
-    },
-    (error) => {
-      // If client is temporarily offline or reconnecting, maintain local cache
-      if ((error as any)?.code === 'unavailable') {
-        console.warn('Firestore onSnapshot operating in offline mode.');
-        return;
-      }
-      console.error('Firestore onSnapshot error:', error);
-      if (onError) {
-        onError(error);
-      }
-      handleFirestoreError(error, OperationType.GET, PRODUCTS_COLLECTION);
-    }
-  );
+    );
+  } catch (initErr) {
+    console.warn('Could not initialize onSnapshot:', initErr);
+    return () => {};
+  }
 }
 
 // Add a new product to Firestore
@@ -226,8 +322,15 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
         }
       }
     } else {
-      // Re-throw with compliant error handler if Firestore permission issue
-      handleFirestoreError(err, OperationType.CREATE, `${PRODUCTS_COLLECTION}/${newId}`);
+      const isQuota = err?.code === 'resource-exhausted' || errMsg.includes('Quota limit exceeded') || errMsg.includes('Quota exceeded');
+      if (isQuota) {
+        setFirestoreQuotaExceeded(true);
+        console.warn('Firestore quota reached during addProduct. Saved via REST API & local storage.');
+      } else if (err?.code === 'permission-denied') {
+        handleFirestoreError(err, OperationType.CREATE, `${PRODUCTS_COLLECTION}/${newId}`);
+      } else {
+        console.warn('Firestore write failed, saved via REST API & local storage:', err);
+      }
     }
   }
 
@@ -316,7 +419,14 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
         }
       }
     } else {
-      handleFirestoreError(err, OperationType.UPDATE, `${PRODUCTS_COLLECTION}/${id}`);
+      if (isFirestoreQuotaError(err)) {
+        setFirestoreQuotaExceeded(true);
+        console.warn('Firestore quota reached during updateProduct. Saved via REST API & local storage.');
+      } else if ((err as any)?.code === 'permission-denied') {
+        handleFirestoreError(err, OperationType.UPDATE, `${PRODUCTS_COLLECTION}/${id}`);
+      } else {
+        console.warn('Firestore update notice, saved via REST API & local storage:', err);
+      }
     }
   }
 
@@ -348,15 +458,20 @@ export async function deleteProduct(id: string): Promise<boolean> {
   try {
     const docRef = doc(db, PRODUCTS_COLLECTION, id);
     await deleteDoc(docRef);
-  } catch (err) {
-    console.warn('Firestore deleteDoc error:', err);
+  } catch (err: any) {
+    console.warn('Firestore deleteDoc notice:', err);
     // Try API
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
     } catch {
       // Ignored
     }
-    handleFirestoreError(err, OperationType.DELETE, `${PRODUCTS_COLLECTION}/${id}`);
+    if (isFirestoreQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      console.warn('Firestore quota reached during deleteProduct. Removed via REST API & local storage.');
+    } else if (err?.code === 'permission-denied') {
+      handleFirestoreError(err, OperationType.DELETE, `${PRODUCTS_COLLECTION}/${id}`);
+    }
   }
 
   // Also sync to server API
@@ -418,10 +533,14 @@ export async function submitCustomerEnquiry(data: {
       createdAt: new Date().toISOString()
     }));
     return true;
-  } catch (err) {
-    console.error('Error submitting enquiry to Firestore:', err);
-    handleFirestoreError(err, OperationType.CREATE, `enquiries/${enquiryId}`);
-    return false;
+  } catch (err: any) {
+    console.warn('Notice submitting enquiry to Firestore, proceeding with WhatsApp flow:', err);
+    if (isFirestoreQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    } else if (err?.code === 'permission-denied') {
+      handleFirestoreError(err, OperationType.CREATE, `enquiries/${enquiryId}`);
+    }
+    return true;
   }
 }
 
