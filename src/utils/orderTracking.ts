@@ -11,26 +11,42 @@ export interface OrderTrackingHistoryItem {
   searchedAt: string; // ISO string
   status: OrderTrackingStatus;
   productHint?: string;
+  orderNote?: string;
 }
 
 export const ORDER_TRACKING_STORAGE_KEY = 'ad_nutrition_order_tracking_history';
 export const LEGACY_ORDER_IDS_KEY = 'ad_nutrition_recent_order_ids';
 
-export const ORDER_STATUS_CONFIG: Record<
-  OrderTrackingStatus,
-  { 
-    label: string; 
-    shortLabel: string;
-    bg: string; 
-    text: string; 
-    border: string; 
-    dot: string; 
-    icon: string;
-    cardBg: string;
-    cardBorder: string;
-    cardAccent: string;
-  }
-> = {
+export interface OrderStatusConfig {
+  label: string; 
+  shortLabel: string;
+  bg: string; 
+  text: string; 
+  border: string; 
+  dot: string; 
+  icon: string;
+  cardBg: string;
+  cardBorder: string;
+  cardAccent: string;
+  // Field configuration for displaying the optional order note in the tracking history card
+  orderNote: string;
+  noteLabel: string;
+  orderNoteLabel: string;
+  orderNoteField: string;
+  noteIcon: string;
+  orderNoteIcon: string;
+  noteBg: string;
+  orderNoteBg: string;
+  noteBorder: string;
+  orderNoteBorder: string;
+  noteText: string;
+  orderNoteText: string;
+  noteAccent: string;
+  orderNoteAccent: string;
+  showOrderNote: boolean;
+}
+
+export const ORDER_STATUS_CONFIG: Record<OrderTrackingStatus, OrderStatusConfig> = {
   'Enquiry Sent': {
     label: 'Enquiry Sent',
     shortLabel: 'Enquiry',
@@ -42,6 +58,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-sky-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-sky-600/35 hover:border-sky-400/60 hover:shadow-sky-950/40',
     cardAccent: 'text-sky-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-sky-950/70',
+    orderNoteBg: 'bg-sky-950/70',
+    noteBorder: 'border-sky-500/25',
+    orderNoteBorder: 'border-sky-500/25',
+    noteText: 'text-sky-200/90',
+    orderNoteText: 'text-sky-200/90',
+    noteAccent: 'text-sky-400',
+    orderNoteAccent: 'text-sky-400',
+    showOrderNote: true,
   },
   'Order Confirmed': {
     label: 'Order Confirmed',
@@ -54,6 +85,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-emerald-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-emerald-600/35 hover:border-emerald-400/60 hover:shadow-emerald-950/40',
     cardAccent: 'text-emerald-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-emerald-950/70',
+    orderNoteBg: 'bg-emerald-950/70',
+    noteBorder: 'border-emerald-500/25',
+    orderNoteBorder: 'border-emerald-500/25',
+    noteText: 'text-emerald-200/90',
+    orderNoteText: 'text-emerald-200/90',
+    noteAccent: 'text-emerald-400',
+    orderNoteAccent: 'text-emerald-400',
+    showOrderNote: true,
   },
   'Packing in Store': {
     label: 'Packing in Store',
@@ -66,6 +112,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-amber-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-amber-600/35 hover:border-amber-400/60 hover:shadow-amber-950/40',
     cardAccent: 'text-amber-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-amber-950/70',
+    orderNoteBg: 'bg-amber-950/70',
+    noteBorder: 'border-amber-500/25',
+    orderNoteBorder: 'border-amber-500/25',
+    noteText: 'text-amber-200/90',
+    orderNoteText: 'text-amber-200/90',
+    noteAccent: 'text-amber-400',
+    orderNoteAccent: 'text-amber-400',
+    showOrderNote: true,
   },
   'Dispatched': {
     label: 'Dispatched / In Transit',
@@ -78,6 +139,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-purple-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-purple-600/35 hover:border-purple-400/60 hover:shadow-purple-950/40',
     cardAccent: 'text-purple-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-purple-950/70',
+    orderNoteBg: 'bg-purple-950/70',
+    noteBorder: 'border-purple-500/25',
+    orderNoteBorder: 'border-purple-500/25',
+    noteText: 'text-purple-200/90',
+    orderNoteText: 'text-purple-200/90',
+    noteAccent: 'text-purple-400',
+    orderNoteAccent: 'text-purple-400',
+    showOrderNote: true,
   },
   'Ready for Pickup': {
     label: 'Ready at Mandi Mor Counter',
@@ -90,6 +166,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-cyan-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-cyan-600/35 hover:border-cyan-400/60 hover:shadow-cyan-950/40',
     cardAccent: 'text-cyan-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-cyan-950/70',
+    orderNoteBg: 'bg-cyan-950/70',
+    noteBorder: 'border-cyan-500/25',
+    orderNoteBorder: 'border-cyan-500/25',
+    noteText: 'text-cyan-200/90',
+    orderNoteText: 'text-cyan-200/90',
+    noteAccent: 'text-cyan-400',
+    orderNoteAccent: 'text-cyan-400',
+    showOrderNote: true,
   },
   'Delivered': {
     label: 'Delivered / Completed',
@@ -102,6 +193,21 @@ export const ORDER_STATUS_CONFIG: Record<
     cardBg: 'bg-gradient-to-br from-green-950/50 via-neutral-950 to-neutral-950',
     cardBorder: 'border-green-600/35 hover:border-green-400/60 hover:shadow-green-950/40',
     cardAccent: 'text-green-400',
+    orderNote: 'Customer Note',
+    noteLabel: 'Customer Note',
+    orderNoteLabel: 'Customer Note',
+    orderNoteField: 'orderNote',
+    noteIcon: '📝',
+    orderNoteIcon: '📝',
+    noteBg: 'bg-green-950/70',
+    orderNoteBg: 'bg-green-950/70',
+    noteBorder: 'border-green-500/25',
+    orderNoteBorder: 'border-green-500/25',
+    noteText: 'text-green-200/90',
+    orderNoteText: 'text-green-200/90',
+    noteAccent: 'text-green-400',
+    orderNoteAccent: 'text-green-400',
+    showOrderNote: true,
   },
 };
 
@@ -157,7 +263,8 @@ export function getOrderTrackingHistory(): OrderTrackingHistoryItem[] {
 export function recordOrderSearch(
   orderId: string,
   initialStatus: OrderTrackingStatus = 'Enquiry Sent',
-  productHint?: string
+  productHint?: string,
+  orderNote?: string
 ): OrderTrackingHistoryItem[] {
   if (typeof window === 'undefined') return [];
 
@@ -176,6 +283,7 @@ export function recordOrderSearch(
       // Keep existing status if it was already updated, otherwise use initialStatus
       status: existingItem ? existingItem.status : initialStatus,
       productHint: productHint || existingItem?.productHint,
+      orderNote: orderNote !== undefined ? orderNote.trim() : existingItem?.orderNote,
     };
 
     const updated = [
@@ -311,6 +419,7 @@ export function exportOrderHistoryToCSV(
       'Order Reference ID',
       'Last Known Status',
       'Product / Stack Hint',
+      'Order Note / Customer Request',
       'Searched Timestamp (ISO)',
       'Formatted Date & Time',
       'Time Ago',
@@ -331,6 +440,7 @@ export function exportOrderHistoryToCSV(
         escapeCsvCell(item.orderId),
         escapeCsvCell(item.status),
         escapeCsvCell(item.productHint || 'Standard Supplement Order'),
+        escapeCsvCell(item.orderNote || ''),
         escapeCsvCell(item.searchedAt),
         escapeCsvCell(formattedDate),
         escapeCsvCell(formatOrderRelativeTime(item.searchedAt)),

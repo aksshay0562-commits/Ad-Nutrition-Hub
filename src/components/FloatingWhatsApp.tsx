@@ -35,7 +35,8 @@ import {
   FileSpreadsheet,
   RefreshCw,
   Activity,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { 
@@ -95,6 +96,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   const [showOrderTracker, setShowOrderTracker] = useState(false);
   const [trackerTab, setTrackerTab] = useState<'search' | 'history'>('search');
   const [orderIdInput, setOrderIdInput] = useState('');
+  const [orderNoteInput, setOrderNoteInput] = useState('');
   const [orderIdError, setOrderIdError] = useState<string | null>(null);
   const [trackingHistory, setTrackingHistory] = useState<OrderTrackingHistoryItem[]>([]);
   const [showTrackingPreview, setShowTrackingPreview] = useState(false);
@@ -250,6 +252,9 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     setTrackingHistory(list);
     if (list.length > 0 && !orderIdInput) {
       setOrderIdInput(list[0].orderId);
+      if (list[0].orderNote && !orderNoteInput) {
+        setOrderNoteInput(list[0].orderNote);
+      }
     }
   };
 
@@ -263,12 +268,26 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     }
   }, [showOrderTracker]);
 
-  const generateTrackingMessage = (orderId: string): string => {
+  const generateTrackingMessage = (orderId: string, note?: string): string => {
     const trimmed = orderId.trim();
-    return `Namaste AD Nutrition Hub Israna! 🙏\n\n📦 *Order Status Tracking Enquiry*\n• Order Reference ID: *${trimmed}*\n• Routing Line: Orders & Dispatch Desk (Line 1: 70159 59517)\n• Store: Mandi Mor, Israna, Panipat (Haryana)\n\nPlease check the current status of my order:\n1. Has this order been confirmed and packed at the store?\n2. What is the estimated dispatch or in-store pickup readiness time?\n\nThank you!`;
+    const noteText = note?.trim();
+    let msg = `Namaste AD Nutrition Hub Israna! 🙏\n\n📦 *Order Status Tracking Enquiry*\n• Order Reference ID: *${trimmed}*\n• Routing Line: Orders & Dispatch Desk (Line 1: 70159 59517)\n• Store: Mandi Mor, Israna, Panipat (Haryana)`;
+    
+    if (noteText) {
+      msg += `\n• Customer Request / Order Note: _"${noteText}"_`;
+    }
+
+    msg += `\n\nPlease check the current status of my order:\n1. Has this order been confirmed and packed at the store?\n2. What is the estimated dispatch or in-store pickup readiness time?`;
+
+    if (noteText) {
+      msg += `\n3. Note / Request: Please verify the specific request mentioned above.`;
+    }
+
+    msg += `\n\nThank you!`;
+    return msg;
   };
 
-  const executeTrackOrderId = (idToTrack: string, statusHint?: OrderTrackingStatus) => {
+  const executeTrackOrderId = (idToTrack: string, statusHint?: OrderTrackingStatus, note?: string) => {
     const trimmed = idToTrack.trim();
     if (!trimmed) {
       triggerHaptic('error');
@@ -279,11 +298,13 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     setOrderIdError(null);
     triggerHaptic('success');
 
-    // Persist into localStorage history (stores up to last 5 searched order IDs with status)
-    const updated = recordOrderSearch(trimmed, statusHint || 'Enquiry Sent');
+    const effectiveNote = note !== undefined ? note.trim() : orderNoteInput.trim();
+
+    // Persist into localStorage history (stores up to last 5 searched order IDs with status and note)
+    const updated = recordOrderSearch(trimmed, statusHint || 'Enquiry Sent', undefined, effectiveNote);
     setTrackingHistory(updated);
 
-    const message = generateTrackingMessage(trimmed);
+    const message = generateTrackingMessage(trimmed, effectiveNote);
     const targetPhone = STORE_INFO.rawPhone1; // Line 1: Orders line
     const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -291,7 +312,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
 
   const handleTrackOrder = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    executeTrackOrderId(orderIdInput);
+    executeTrackOrderId(orderIdInput, undefined, orderNoteInput);
   };
 
   const handleStatusChange = (orderId: string, newStatus: OrderTrackingStatus) => {
@@ -316,6 +337,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     clearOrderTrackingHistory();
     setTrackingHistory([]);
     setOrderIdInput('');
+    setOrderNoteInput('');
     setTrackerTab('search');
   };
 
@@ -327,15 +349,37 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     return 'orders';
   });
 
+  const [isTransitioningMode, setIsTransitioningMode] = useState<boolean>(false);
+  const transitionTimerRef = useRef<number | null>(null);
+
   const selectedLine: WhatsAppLine = QUERY_TYPE_CONFIG[queryType].line;
 
   const handleSelectQueryType = (type: WhatsAppQueryType) => {
-    triggerHaptic('light');
+    if (type !== queryType) {
+      triggerHaptic('medium');
+      setIsTransitioningMode(true);
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+      transitionTimerRef.current = window.setTimeout(() => {
+        setIsTransitioningMode(false);
+      }, 900);
+    } else {
+      triggerHaptic('light');
+    }
     setQueryType(type);
     if (typeof window !== 'undefined') {
       localStorage.setItem('ad_wa_preferred_query', type);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
 
   const [isQrZoomed, setIsQrZoomed] = useState(false);
   const [zoomCopied, setZoomCopied] = useState(false);
@@ -859,13 +903,58 @@ Visit the online catalog or walk in to check batch verification and current in-s
         <AnimatePresence>
           {showSettingsMenu && (
             <motion.div
-              initial={{ opacity: 0, y: 18, scale: 0.96, filter: 'blur(5px)' }}
-              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: 14, scale: 0.96, filter: 'blur(4px)', transition: { duration: 0.16, ease: 'easeIn' } }}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="bg-neutral-900/95 backdrop-blur-md border border-neutral-700/80 rounded-2xl shadow-2xl p-3.5 w-80 sm:w-88 space-y-3 origin-bottom-right"
+              initial={{ opacity: 0, y: 22, scale: 0.96, filter: 'blur(10px)' }}
+              animate={{ 
+                opacity: 1, 
+                y: 0, 
+                scale: 1, 
+                filter: 'blur(0px)',
+                backdropFilter: isTransitioningMode ? 'blur(48px)' : 'blur(24px)',
+              }}
+              exit={{ opacity: 0, y: 16, scale: 0.96, filter: 'blur(8px)', transition: { duration: 0.22, ease: 'easeIn' } }}
+              transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+              className={`border border-neutral-700/80 rounded-2xl shadow-2xl p-3.5 w-80 sm:w-88 space-y-3 origin-bottom-right relative overflow-hidden transition-all duration-700 ${
+                isTransitioningMode 
+                  ? 'bg-neutral-950/98 backdrop-blur-3xl ring-1 ring-amber-500/30 shadow-2xl' 
+                  : 'bg-neutral-900/95 backdrop-blur-2xl'
+              }`}
               id="whatsapp-settings-menu"
             >
+              {/* High-intensity Backdrop Blur Veil during Mode Transition - fully obscures content beneath */}
+              <AnimatePresence>
+                {isTransitioningMode && (
+                  <motion.div
+                    initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    animate={{ 
+                      opacity: 1, 
+                      backdropFilter: 'blur(48px)',
+                    }}
+                    exit={{ 
+                      opacity: 0, 
+                      backdropFilter: 'blur(0px)',
+                    }}
+                    transition={{ duration: 0.88, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 z-30 rounded-2xl bg-neutral-950/98 backdrop-blur-3xl flex flex-col items-center justify-center gap-3 p-5 text-center pointer-events-none select-none shadow-2xl"
+                    style={{ backdropFilter: 'blur(48px)', WebkitBackdropFilter: 'blur(48px)' }}
+                    id="whatsapp-settings-backdrop-veil"
+                  >
+                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-neutral-900/95 border border-neutral-700/90 shadow-2xl">
+                      <span className={`w-2.5 h-2.5 rounded-full animate-ping ${
+                        queryType === 'orders' ? 'bg-amber-400' : 'bg-emerald-400'
+                      }`} />
+                      <span className="text-xs font-bold text-white tracking-wide">
+                        {queryType === 'orders' ? 'Switching to Orders (Line 1)...' : 'Switching to General Queries (Line 2)...'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 font-medium max-w-[220px]">
+                      {queryType === 'orders' 
+                        ? 'Loading real-time stock & order booking line' 
+                        : 'Loading nutrition advice & supplement support line'}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Header */}
               <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
                 <div className="flex items-center gap-2">
@@ -900,10 +989,10 @@ Visit the online catalog or walk in to check batch verification and current in-s
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.span
                       key={queryType}
-                      initial={{ opacity: 0.3, filter: 'blur(3px)', y: 2 }}
+                      initial={{ opacity: 0, filter: 'blur(16px)', y: 3 }}
                       animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                      exit={{ opacity: 0.3, filter: 'blur(3px)', y: -2 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      exit={{ opacity: 0, filter: 'blur(16px)', y: -3 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
                       className="text-[10px] text-neutral-400 flex items-center gap-1 font-semibold"
                     >
                       <span className={`w-2 h-2 rounded-full ${
@@ -970,11 +1059,11 @@ Visit the online catalog or walk in to check batch verification and current in-s
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={queryType}
-                  initial={{ opacity: 0.45, filter: 'blur(5px)', y: 4 }}
-                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                  exit={{ opacity: 0.45, filter: 'blur(5px)', y: -4 }}
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-2 pt-0.5"
+                  initial={{ opacity: 0, filter: 'blur(36px)', y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0, scale: 1 }}
+                  exit={{ opacity: 0, filter: 'blur(36px)', y: -8, scale: 0.95 }}
+                  transition={{ duration: 0.88, ease: [0.22, 1, 0.36, 1] }}
+                  className="space-y-2 pt-0.5 relative"
                   id="whatsapp-mode-transition-container"
                 >
                   {/* Subtle active mode indicator pill */}
@@ -1297,6 +1386,40 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     )}
                   </div>
 
+                  {/* Optional Order Note text input field */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-neutral-300 flex items-center gap-1.5" htmlFor="order-tracker-note-input">
+                        <FileText className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Order Note / Specific Requests:</span>
+                      </label>
+                      <span className="text-[10px] text-neutral-500 font-medium">Optional</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="order-tracker-note-input"
+                        value={orderNoteInput}
+                        onChange={(e) => setOrderNoteInput(e.target.value)}
+                        placeholder="e.g. Call before dispatch, add shaker, extra bubble wrap..."
+                        className="w-full px-3 py-2 pr-8 rounded-xl bg-neutral-950 border border-neutral-700/80 focus:border-amber-400 text-xs text-white placeholder-neutral-500 focus:outline-none transition-colors"
+                      />
+                      {orderNoteInput && (
+                        <button
+                          type="button"
+                          onClick={() => setOrderNoteInput('')}
+                          className="absolute right-2.5 top-2.5 text-neutral-400 hover:text-white cursor-pointer"
+                          title="Clear note"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[9.5px] text-neutral-400 mt-1">
+                      Included directly in your WhatsApp message and saved with your order history.
+                    </p>
+                  </div>
+
                   {/* Recent Order History Chips */}
                   {trackingHistory.length > 0 && (
                     <div className="space-y-1.5">
@@ -1324,6 +1447,9 @@ Visit the online catalog or walk in to check batch verification and current in-s
                               onClick={() => {
                                 triggerHaptic('light');
                                 setOrderIdInput(item.orderId);
+                                if (item.orderNote) {
+                                  setOrderNoteInput(item.orderNote);
+                                }
                                 if (orderIdError) setOrderIdError(null);
                               }}
                               className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all cursor-pointer border flex items-center gap-1.5 ${
@@ -1368,7 +1494,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     </button>
                     {showTrackingPreview && (
                       <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-[10px] font-mono text-neutral-300 whitespace-pre-wrap leading-relaxed shadow-inner max-h-32 overflow-y-auto">
-                        {generateTrackingMessage(orderIdInput || 'YOUR_ORDER_ID')}
+                        {generateTrackingMessage(orderIdInput || 'YOUR_ORDER_ID', orderNoteInput)}
                       </div>
                     )}
                   </div>
@@ -1758,6 +1884,15 @@ Visit the online catalog or walk in to check batch verification and current in-s
                             {/* Card Top: Order ID, Timestamp & Delete button */}
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
+                                <span 
+                                  className="text-sm select-none shrink-0 inline-flex items-center justify-center" 
+                                  role="img" 
+                                  aria-label={statusConf.label} 
+                                  title={`Status: ${statusConf.label}`}
+                                  id={`history-order-status-icon-${item.orderId}`}
+                                >
+                                  {statusConf.icon}
+                                </span>
                                 <span className={`font-mono font-bold text-xs ${statusConf.cardAccent}`}>
                                   #{item.orderId}
                                 </span>
@@ -1785,6 +1920,33 @@ Visit the online catalog or walk in to check batch verification and current in-s
                               <div className="text-[10.5px] text-neutral-200 font-medium truncate flex items-center gap-1.5 bg-neutral-950/60 px-2.5 py-1 rounded-lg border border-neutral-800/80">
                                 <span>📦</span>
                                 <span className="truncate">{item.productHint}</span>
+                              </div>
+                            )}
+
+                            {/* Optional Customer Note / Specific Request configured via ORDER_STATUS_CONFIG */}
+                            {item.orderNote && statusConf.showOrderNote !== false && (
+                              <div 
+                                className={`text-[10.5px] ${statusConf.noteText || 'text-amber-200/90'} font-normal flex items-start gap-1.5 ${statusConf.noteBg || 'bg-neutral-950/70'} p-2 rounded-xl border ${statusConf.noteBorder || 'border-amber-500/20'} leading-snug`}
+                                id={`history-order-note-${item.orderId}`}
+                                data-testid={`history-order-note-${item.orderId}`}
+                              >
+                                <span className="shrink-0 mt-0.5 text-xs select-none" role="img" aria-label="note icon">
+                                  {statusConf.noteIcon || statusConf.orderNoteIcon || '📝'}
+                                </span>
+                                <div className="space-y-0.5 min-w-0">
+                                  <span 
+                                    className={`text-[9.5px] font-bold ${statusConf.noteAccent || statusConf.orderNoteAccent || 'text-amber-400/90'} uppercase tracking-wider block`}
+                                    id={`history-order-note-label-${item.orderId}`}
+                                  >
+                                    {statusConf.noteLabel || statusConf.orderNoteLabel || statusConf.orderNote || 'Customer Note'}:
+                                  </span>
+                                  <p 
+                                    className="text-neutral-200 break-words" 
+                                    id={`history-order-note-text-${item.orderId}`}
+                                  >
+                                    {item.orderNote}
+                                  </p>
+                                </div>
                               </div>
                             )}
 
@@ -1860,7 +2022,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                             <div className="flex items-center gap-1.5 pt-1.5 border-t border-neutral-900/80">
                               <button
                                 type="button"
-                                onClick={() => executeTrackOrderId(item.orderId, item.status)}
+                                onClick={() => executeTrackOrderId(item.orderId, item.status, item.orderNote)}
                                 className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-neutral-950 text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
                                 title="Send live status query to Line 1 Orders on WhatsApp"
                               >
@@ -1874,6 +2036,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                                 onClick={() => {
                                   triggerHaptic('light');
                                   setOrderIdInput(item.orderId);
+                                  setOrderNoteInput(item.orderNote || '');
                                   setTrackerTab('search');
                                 }}
                                 className="py-1.5 px-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white text-[10.5px] font-semibold border border-neutral-800 transition-colors cursor-pointer"

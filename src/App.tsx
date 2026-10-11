@@ -49,6 +49,7 @@ import { CatalogSortBar, ProductSortOption } from './components/CatalogSortBar';
 import { QuickOrderModal } from './components/QuickOrderModal';
 import { PaymentQRModal } from './components/PaymentQRModal';
 import { VoiceSearchButton } from './components/VoiceSearchButton';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { 
   SiteVisitStats, 
   recordSiteVisit, 
@@ -1223,6 +1224,8 @@ export default function App() {
         initialMethod={paymentQRMethod}
         productContext={paymentQRProduct}
       />
+      {/* PWA Offline / Online Connectivity Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }
