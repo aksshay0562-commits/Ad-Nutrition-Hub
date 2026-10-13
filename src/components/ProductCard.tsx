@@ -140,11 +140,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             ) : null}
           </div>
-          {discountPercent ? (
-            <span className="px-2 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-[11px] font-extrabold uppercase shadow-sm">
-              {discountPercent}% OFF
-            </span>
-          ) : null}
+          <div className="flex items-center gap-1.5">
+            {product.images && product.images.length > 1 && (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-700/80 text-amber-300 text-[10px] font-black backdrop-blur-md shadow-sm"
+                title={`${product.images.length} photos available`}
+              >
+                <Camera className="w-3 h-3 text-amber-400" />
+                <span>{product.images.length}</span>
+              </span>
+            )}
+            {discountPercent ? (
+              <span className="px-2 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-[11px] font-extrabold uppercase shadow-sm">
+                {discountPercent}% OFF
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Stock Status Badge & YouTube Badge at bottom left of image */}

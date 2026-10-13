@@ -50,6 +50,21 @@
           "description": "URL to the product image asset or base64 data URL",
           "maxLength": 1500000
         },
+        "images": {
+          "type": "array",
+          "description": "Array of product image URLs or base64 data URLs for multi-photo gallery (2 or more photos)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "views": {
+          "type": "number",
+          "description": "Count of times the product has been viewed"
+        },
+        "salesCount": {
+          "type": "number",
+          "description": "Count of times the product has been ordered"
+        },
         "featured": {
           "type": "boolean",
           "description": "Whether the product is highlighted in top picks"
