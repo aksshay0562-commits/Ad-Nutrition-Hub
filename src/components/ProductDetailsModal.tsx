@@ -72,21 +72,19 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onOpenPaymentQR,
   isAdmin = false
 }) => {
-  if (!product) return null;
-
   const { currentUser } = useAuth();
-  const isInStock = product.availability === 'In Stock';
-  const isQuickBuy = isQuickBuyProduct(product);
+  const isInStock = product?.availability === 'In Stock';
+  const isQuickBuy = product ? isQuickBuyProduct(product) : false;
   const [selectedWhatsAppLine, setSelectedWhatsAppLine] = React.useState<'line1' | 'line2'>('line1');
   const targetWhatsAppRaw = selectedWhatsAppLine === 'line1' ? STORE_INFO.rawPhone1 : STORE_INFO.rawPhone2;
-  const whatsappUrl = buildWhatsAppEnquiryUrl(product, undefined, targetWhatsAppRaw);
+  const whatsappUrl = product ? buildWhatsAppEnquiryUrl(product, undefined, targetWhatsAppRaw) : '';
 
   // Price Drop Alert State
   const [showAlertForm, setShowAlertForm] = React.useState<boolean>(false);
   const [alertPhone, setAlertPhone] = React.useState<string>(() => localStorage.getItem('ad_nutrition_user_phone') || '');
   const [alertName, setAlertName] = React.useState<string>(() => localStorage.getItem('ad_nutrition_user_name') || currentUser?.displayName || '');
   const [targetType, setTargetType] = React.useState<'5percent' | '10percent' | 'any' | 'custom'>('5percent');
-  const [customPrice, setCustomPrice] = React.useState<string>(() => Math.round(product.price * 0.95).toString());
+  const [customPrice, setCustomPrice] = React.useState<string>(() => product ? Math.round(product.price * 0.95).toString() : '0');
   const [alertSubmitting, setAlertSubmitting] = React.useState<boolean>(false);
   const [alertSuccess, setAlertSuccess] = React.useState<boolean>(false);
   const [alertError, setAlertError] = React.useState<string | null>(null);
@@ -94,25 +92,26 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
   // Multiple images gallery support (2 or more photos)
   const productImages = React.useMemo(() => {
+    if (!product) return [];
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
       return product.images;
     }
     return product.imageUrl ? [product.imageUrl] : ['https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80'];
-  }, [product.images, product.imageUrl]);
+  }, [product?.images, product?.imageUrl]);
 
   const [activeImageIndex, setActiveImageIndex] = React.useState<number>(0);
 
   // Reset active image index when product changes
   React.useEffect(() => {
     setActiveImageIndex(0);
-  }, [product.id]);
+  }, [product?.id]);
 
-  const activeImage = productImages[activeImageIndex] || product.imageUrl;
+  const activeImage = (productImages && productImages[activeImageIndex]) || product?.imageUrl || '';
 
   const handlePrevImage = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     triggerHaptic('light');
-    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, productImages.length - 1)));
   };
 
   const handleNextImage = (e?: React.MouseEvent) => {
@@ -121,25 +120,27 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
     setActiveImageIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
   };
 
-  const discountPercent = product.originalPrice && product.originalPrice > product.price
+  const discountPercent = product?.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null;
 
-  const savingsAmount = product.originalPrice && product.originalPrice > product.price
+  const savingsAmount = product?.originalPrice && product.originalPrice > product.price
     ? product.originalPrice - product.price
     : null;
 
   // Compute target price based on choice
   const computedTargetPrice = React.useMemo(() => {
+    if (!product) return 0;
     if (targetType === 'any') return Math.max(100, product.price - 100);
     if (targetType === '5percent') return Math.round(product.price * 0.95);
     if (targetType === '10percent') return Math.round(product.price * 0.90);
     const parsed = parseFloat(customPrice);
     return isNaN(parsed) || parsed <= 0 ? Math.round(product.price * 0.95) : Math.round(parsed);
-  }, [targetType, customPrice, product.price]);
+  }, [targetType, customPrice, product?.price]);
 
   // Compute or fallback realistic price history trend
   const chartData: PriceHistoryPoint[] = React.useMemo(() => {
+    if (!product) return [];
     if (product.priceHistory && product.priceHistory.length >= 2) {
       return product.priceHistory;
     }
@@ -154,7 +155,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
       ];
     }
     // Realistic fallback based on originalPrice -> current price
-    const curr = product.price;
+    const curr = product.price || 0;
     const orig = product.originalPrice && product.originalPrice > curr 
       ? product.originalPrice 
       : Math.round(curr * 1.18);
@@ -169,12 +170,16 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   }, [product]);
 
   const prices = chartData.map(d => d.price);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const isAtLowest = product.price <= minPrice;
-  const savingsFromPeak = maxPrice - product.price;
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+  const isAtLowest = Boolean(product && product.price <= minPrice);
+  const savingsFromPeak = product ? maxPrice - product.price : 0;
+
+  const [copiedShareLink, setCopiedShareLink] = React.useState<boolean>(false);
 
   const handleShare = () => {
+    if (!product) return;
+    triggerHaptic('light');
     if (navigator.share) {
       navigator.share({
         title: `${product.name} - AD Nutrition Hub Israna`,
@@ -182,13 +187,17 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         url: window.location.href,
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Product link copied to clipboard!');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(window.location.href);
+      }
+      setCopiedShareLink(true);
+      setTimeout(() => setCopiedShareLink(false), 2000);
     }
   };
 
   const handlePriceAlertSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!product) return;
     setAlertError(null);
 
     const cleanDigits = alertPhone.replace(/\D/g, '');
@@ -226,6 +235,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
       setAlertSubmitting(false);
     }
   };
+
+  if (!product) return null;
 
   return (
     <motion.div 
@@ -268,11 +279,15 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             )}
             <button
               onClick={handleShare}
-              className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
-              title="Share Product"
+              className={`p-1.5 rounded-lg transition-colors ${
+                copiedShareLink 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white'
+              }`}
+              title={copiedShareLink ? 'Link Copied!' : 'Share Product'}
               id="modal-share-product-btn"
             >
-              <Share2 className="w-4 h-4" />
+              {copiedShareLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
             </button>
             <button
               onClick={onClose}

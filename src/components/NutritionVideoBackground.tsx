@@ -89,26 +89,6 @@ export const NutritionVideoBackground: React.FC<NutritionVideoBackgroundProps> =
     playVideo();
   }, [currentClipIndex]);
 
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    triggerHaptic('light');
-    if (video.paused) {
-      video.play().then(() => setIsPlaying(true)).catch(() => {});
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const selectClip = (index: number) => {
-    triggerHaptic('medium');
-    setIsVideoLoaded(false);
-    setCurrentClipIndex(index);
-    setIsMenuOpen(false);
-  };
-
   // Kinetic Nutrition Particle Canvas Overlay
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -190,6 +170,26 @@ export const NutritionVideoBackground: React.FC<NutritionVideoBackgroundProps> =
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    triggerHaptic('light');
+    if (video.paused) {
+      video.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const selectClip = (index: number) => {
+    triggerHaptic('medium');
+    setIsVideoLoaded(false);
+    setCurrentClipIndex(index);
+    setIsMenuOpen(false);
+  };
 
   const getOpacityClass = () => {
     switch (videoOpacity) {

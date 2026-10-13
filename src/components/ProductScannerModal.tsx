@@ -117,6 +117,14 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
   // Analytics total scans counter
   const [totalScansCount, setTotalScansCount] = useState<number>(() => getScanAnalytics().totalScans);
 
+  // Scanned result state
+  const [scannedResult, setScannedResult] = useState<{
+    rawCode: string;
+    matchedProduct: Product | null;
+    isJsonData: boolean;
+    jsonData?: Partial<Product>;
+  } | null>(null);
+
   // Load and hydrate recent scans from localStorage
   useEffect(() => {
     try {
@@ -211,14 +219,6 @@ export const ProductScannerModal: React.FC<ProductScannerModalProps> = ({
       onClose();
     }
   };
-
-  // Scanned state
-  const [scannedResult, setScannedResult] = useState<{
-    rawCode: string;
-    matchedProduct: Product | null;
-    isJsonData: boolean;
-    jsonData?: Partial<Product>;
-  } | null>(null);
 
   // Initialize and start scanner when opened
   useEffect(() => {

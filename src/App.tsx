@@ -1100,19 +1100,21 @@ export default function App() {
       />
 
       {/* Product Details Modal */}
-      <ProductDetailsModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        onQuickOrder={(p) => setQuickOrderProduct(p)}
-        isAdmin={isAdmin}
-        onShowQR={(p) => setQrModalProduct(p)}
-        onOpenPaymentQR={(amt, prod) => handleOpenPaymentQR(amt, prod)}
-        onEdit={(p) => {
-          setSelectedProduct(null);
-          setEditingProduct(p);
-          setIsAdminModalOpen(true);
-        }}
-      />
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onQuickOrder={(p) => setQuickOrderProduct(p)}
+          isAdmin={isAdmin}
+          onShowQR={(p) => setQrModalProduct(p)}
+          onOpenPaymentQR={(amt, prod) => handleOpenPaymentQR(amt, prod)}
+          onEdit={(p) => {
+            setSelectedProduct(null);
+            setEditingProduct(p);
+            setIsAdminModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Owner / Admin Management Modal */}
       <AdminPanel
