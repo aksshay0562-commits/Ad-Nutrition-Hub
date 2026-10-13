@@ -3,7 +3,7 @@
  * Provides tactile confirmation for button interactions and barcode/QR scan events.
  */
 
-export type HapticType = 'light' | 'medium' | 'success' | 'double' | 'error';
+export type HapticType = 'light' | 'medium' | 'success' | 'double' | 'error' | 'warning';
 
 export function triggerHaptic(type: HapticType = 'light'): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -22,6 +22,9 @@ export function triggerHaptic(type: HapticType = 'light'): boolean {
       case 'medium':
         // Moderate tactile press
         return navigator.vibrate(55);
+      case 'warning':
+        // Moderate warning vibration
+        return navigator.vibrate([40, 40, 40]);
       case 'success':
       case 'double':
         // Celebratory double-pulse when a product barcode/QR scan result is successfully recognized and processed

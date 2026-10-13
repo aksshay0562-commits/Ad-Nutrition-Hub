@@ -24,7 +24,10 @@ import {
   Trophy,
   Flame,
   Clock,
-  Activity
+  Activity,
+  Star,
+  Layers,
+  Plus
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
 import { formatPrice, getYoutubeVideoId } from '../services/productService';
@@ -144,6 +147,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [brand, setBrand] = useState('AD Nutrition Hub');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [extraImageUrl, setExtraImageUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [featured, setFeatured] = useState(false);
 
@@ -156,7 +162,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (scannedData.brand) setBrand(scannedData.brand);
     if (scannedData.weightOrSize) setWeightOrSize(scannedData.weightOrSize);
     if (scannedData.flavour) setFlavour(scannedData.flavour);
-    if (scannedData.imageUrl) setImageUrl(scannedData.imageUrl);
+    if (scannedData.imageUrl) {
+      setImageUrl(scannedData.imageUrl);
+      setGalleryImages([scannedData.imageUrl]);
+    }
+    if ((scannedData as any).images && Array.isArray((scannedData as any).images)) {
+      setGalleryImages((scannedData as any).images);
+    }
     if (scannedData.youtubeUrl) setYoutubeUrl(scannedData.youtubeUrl);
     if (scannedData.description) {
       setDescription((prev) => prev ? `${prev}\n${scannedData.description}` : (scannedData.description || ''));
@@ -196,6 +208,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setBrand(editingProduct.brand || 'AD Nutrition Hub');
       setDescription(editingProduct.description || '');
       setImageUrl(editingProduct.imageUrl || '');
+      const initialGallery = editingProduct.images && editingProduct.images.length > 0
+        ? editingProduct.images
+        : (editingProduct.imageUrl ? [editingProduct.imageUrl] : []);
+      setGalleryImages(initialGallery);
       setYoutubeUrl(editingProduct.youtubeUrl || '');
       setFeatured(Boolean(editingProduct.featured));
       setActiveTab('form');
@@ -216,6 +232,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setBrand('AD Nutrition Hub');
     setDescription('');
     setImageUrl('');
+    setGalleryImages([]);
+    setExtraImageUrl('');
     setYoutubeUrl('');
     setFeatured(false);
     setEditingProduct(null);
@@ -232,34 +250,104 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Image file upload handler (compresses file and converts to web-friendly base64)
+  // Multiple / Single image file upload handler (compresses files and supports 2 or more images)
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (file.size > 25 * 1024 * 1024) {
-      alert('Image file is too large! Please choose an image under 25MB.');
-      return;
+    setIsUploadingImages(true);
+    triggerHaptic('light');
+
+    const newCompressed: string[] = [];
+    for (const file of files) {
+      if (file.size > 25 * 1024 * 1024) {
+        alert(`File "${file.name}" is too large! Please choose an image under 25MB.`);
+        continue;
+      }
+
+      try {
+        const compressed = await compressImage(file, 800, 800, 0.75);
+        newCompressed.push(compressed);
+      } catch (err) {
+        console.warn('Image compression fallback:', err);
+        try {
+          const fallbackData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          newCompressed.push(fallbackData);
+        } catch {
+          // ignore
+        }
+      }
     }
 
-    try {
-      // Compress and resize for crisp display under 150KB
-      const compressed = await compressImage(file, 800, 800, 0.75);
-      setImageUrl(compressed);
-    } catch (err) {
-      console.warn('Image compression fallback:', err);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        if (typeof reader.result === 'string') {
-          try {
-            const comp = await compressImage(reader.result, 800, 800, 0.75);
-            setImageUrl(comp);
-          } catch {
-            setImageUrl(reader.result);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
+    if (newCompressed.length > 0) {
+      setGalleryImages((prev) => {
+        const updated = [...prev, ...newCompressed].slice(0, 10);
+        return updated;
+      });
+
+      // If imageUrl is empty, or not in list, set primary to first
+      setImageUrl((current) => current || newCompressed[0]);
+      triggerHaptic('success');
+      setFeedbackMessage({
+        type: 'success',
+        text: `${newCompressed.length} photo(s) uploaded successfully! (Total: ${galleryImages.length + newCompressed.length} photos)`
+      });
+    }
+
+    setIsUploadingImages(false);
+    e.target.value = '';
+  };
+
+  const handleRemoveGalleryImage = (indexToRemove: number) => {
+    triggerHaptic('light');
+    const removedUrl = galleryImages[indexToRemove];
+    const updated = galleryImages.filter((_, idx) => idx !== indexToRemove);
+    setGalleryImages(updated);
+    if (imageUrl === removedUrl) {
+      setImageUrl(updated[0] || '');
+    }
+  };
+
+  const handleSetPrimaryImage = (index: number) => {
+    triggerHaptic('medium');
+    const selected = galleryImages[index];
+    if (!selected) return;
+    const reordered = [selected, ...galleryImages.filter((_, idx) => idx !== index)];
+    setGalleryImages(reordered);
+    setImageUrl(selected);
+    setFeedbackMessage({
+      type: 'success',
+      text: 'Main Cover Photo updated!'
+    });
+  };
+
+  const handleAddUrlToGallery = () => {
+    const trimmed = extraImageUrl.trim();
+    if (!trimmed) return;
+    triggerHaptic('light');
+    setGalleryImages((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      return [...prev, trimmed].slice(0, 10);
+    });
+    if (!imageUrl) {
+      setImageUrl(trimmed);
+    }
+    setExtraImageUrl('');
+  };
+
+  const handleAddPresetToGallery = (presetUrl: string) => {
+    triggerHaptic('light');
+    setGalleryImages((prev) => {
+      if (prev.includes(presetUrl)) return prev;
+      return [...prev, presetUrl].slice(0, 10);
+    });
+    if (!imageUrl) {
+      setImageUrl(presetUrl);
     }
   };
 
@@ -276,7 +364,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
 
     const finalCategory = category === 'Other' ? (customCategory.trim() || 'Supplements') : category;
-    let finalImageUrl = imageUrl.trim() || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
+    
+    // Process gallery images and cover photo
+    let processedGallery = [...galleryImages];
+    if (imageUrl.trim() && !processedGallery.includes(imageUrl.trim())) {
+      processedGallery.unshift(imageUrl.trim());
+    }
+
+    let finalImageUrl = imageUrl.trim() || processedGallery[0] || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
 
     if (finalImageUrl.startsWith('data:image')) {
       try {
@@ -285,6 +380,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         console.warn('AdminPanel pre-submit image compression failed:', compErr);
       }
     }
+
+    const finalImages = processedGallery.length > 0 ? processedGallery : [finalImageUrl];
 
     setIsSubmitting(true);
     try {
@@ -309,6 +406,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           brand: brand.trim() || 'AD Nutrition Hub',
           description: description.trim(),
           imageUrl: finalImageUrl,
+          images: finalImages,
           featured,
           youtubeUrl: youtubeUrl.trim() || undefined,
           priceHistory: updatedPriceHistory.length > 0 ? updatedPriceHistory : undefined,
@@ -331,6 +429,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           brand: brand.trim() || 'AD Nutrition Hub',
           description: description.trim(),
           imageUrl: finalImageUrl,
+          images: finalImages,
           featured,
           youtubeUrl: youtubeUrl.trim() || undefined,
           priceHistory: initialPriceHistory,
@@ -873,88 +972,217 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </p>
                 </div>
 
-                {/* Product Image Section: Upload or Preset or URL */}
-                <div className="space-y-3 p-4 rounded-xl bg-neutral-950/80 border border-neutral-800">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-neutral-300 flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-amber-400" />
-                      <span>Product Photo (Upload, Preset, or URL)</span>
-                    </label>
-                    {imageUrl && (
+                {/* Product Image Section: Upload 2 or More Photos (Multi-Image Gallery) */}
+                <div className="space-y-3.5 p-4 rounded-xl bg-neutral-950/80 border border-neutral-800" id="admin-product-photos-gallery-section">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                        <ImageIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-white flex items-center gap-2">
+                          <span>Product Photos (Upload 2 ya use jyada Photos)</span>
+                          {galleryImages.length >= 2 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-950/80 text-emerald-400 border border-emerald-800/80">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>{galleryImages.length} Photos (Gallery Ready)</span>
+                            </span>
+                          ) : galleryImages.length === 1 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800/80">
+                              <span>1 Photo (Add 1+ more for 2+ photos)</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-neutral-400">0 Photos selected</span>
+                          )}
+                        </label>
+                        <p className="text-[11px] text-neutral-400">
+                          Upload 2 or more images: Front cover photo, Nutrition facts label, Scoop/texture, and Authenticity seal.
+                        </p>
+                      </div>
+                    </div>
+
+                    {galleryImages.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setImageUrl('')}
-                        className="text-[11px] text-red-400 hover:underline"
+                        onClick={() => {
+                          setImageUrl('');
+                          setGalleryImages([]);
+                        }}
+                        className="text-[11px] text-red-400 hover:text-red-300 hover:underline flex items-center gap-1"
                       >
-                        Clear Photo
+                        <Trash2 className="w-3 h-3" />
+                        <span>Clear All ({galleryImages.length})</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                    {/* Image Preview */}
-                    <div className="md:col-span-3 w-28 h-28 mx-auto md:mx-0 rounded-xl bg-neutral-900 border border-neutral-700 overflow-hidden relative flex items-center justify-center">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-[11px] text-neutral-400 text-center p-2">
-                          No Photo Selected
-                        </span>
+                  {/* Processing / Uploading Indicator */}
+                  {isUploadingImages && (
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      <span>Compressing & optimizing photos for instant mobile loading...</span>
+                    </div>
+                  )}
+
+                  {/* Gallery Thumbnails Grid */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                      <span>Photo Gallery ({galleryImages.length} selected - First photo is Main Cover)</span>
+                      {galleryImages.length > 1 && (
+                        <span className="text-amber-400 font-medium">★ Click "Make Cover" to change main photo</span>
                       )}
                     </div>
 
-                    {/* Upload Controls */}
-                    <div className="md:col-span-9 space-y-2.5">
-                      {/* Option 1: File Upload from phone/camera */}
-                      <div className="flex items-center gap-2">
-                        <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold transition-colors border border-neutral-700">
-                          <Upload className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Upload from Phone / PC</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageFileUpload}
-                            className="hidden"
-                            id="form-image-file-input"
-                          />
-                        </label>
-                        <span className="text-neutral-400 text-xs">or paste image URL below</span>
-                      </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      {galleryImages.map((imgSrc, idx) => {
+                        const isMainCover = idx === 0 || imgSrc === imageUrl;
+                        return (
+                          <div
+                            key={`${imgSrc.slice(0, 32)}-${idx}`}
+                            className={`group relative rounded-xl overflow-hidden aspect-square bg-neutral-900 border transition-all ${
+                              isMainCover
+                                ? 'border-amber-500 ring-2 ring-amber-500/30 shadow-md shadow-amber-500/10'
+                                : 'border-neutral-800 hover:border-neutral-700'
+                            }`}
+                          >
+                            <img
+                              src={imgSrc}
+                              alt={`Product Photo ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
 
-                      {/* Option 2: Image URL input */}
-                      <div className="relative">
+                            {/* Badge */}
+                            <div className="absolute top-1.5 left-1.5 pointer-events-none">
+                              {isMainCover ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500 text-neutral-950 text-[9.5px] font-black uppercase tracking-wider shadow">
+                                  <Star className="w-2.5 h-2.5 fill-neutral-950" />
+                                  <span>Cover</span>
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-neutral-950/80 backdrop-blur-sm text-neutral-300 text-[9.5px] font-bold border border-neutral-700/60">
+                                  Photo #{idx + 1}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Card Hover Action Bar */}
+                            <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-neutral-950 via-neutral-950/80 to-transparent flex items-center justify-between gap-1">
+                              {!isMainCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetPrimaryImage(idx)}
+                                  className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-amber-500 hover:text-neutral-950 text-neutral-200 transition-colors"
+                                  title="Set as Main Cover Photo"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveGalleryImage(idx)}
+                                className="p-1 rounded bg-neutral-800/90 hover:bg-red-600 text-neutral-400 hover:text-white transition-colors ml-auto"
+                                title="Remove this photo"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Add More Photos Card in Grid */}
+                      <label
+                        className="cursor-pointer flex flex-col items-center justify-center p-3 rounded-xl border-2 border-dashed border-neutral-800 hover:border-amber-500/60 bg-neutral-900/50 hover:bg-neutral-900 text-neutral-400 hover:text-amber-400 transition-all aspect-square text-center group"
+                        title="Upload 2 or more photos"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-amber-500/20 flex items-center justify-center mb-1.5 transition-colors">
+                          <Plus className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-xs font-bold text-neutral-200 group-hover:text-amber-300">
+                          + Add Photos
+                        </span>
+                        <span className="text-[10px] text-neutral-500">
+                          Select 2+ files
+                        </span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageFileUpload}
+                          className="hidden"
+                          id="form-multi-image-file-input-grid"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Upload Controls & URL Input */}
+                  <div className="space-y-3 pt-2 border-t border-neutral-800/80">
+                    {/* Method 1: Multi-file picker button */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black transition-all shadow-md shadow-amber-500/10">
+                        <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Upload 2+ Photos (Select Multiple)</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageFileUpload}
+                          className="hidden"
+                          id="form-multi-image-file-input"
+                        />
+                      </label>
+                      <span className="text-xs text-neutral-400">
+                        Supports JPEG, PNG, WEBP (auto-compressed under 150KB)
+                      </span>
+                    </div>
+
+                    {/* Method 2: Add Image URL to Gallery */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
                         <input
                           type="url"
-                          placeholder="Paste image URL (https://...)"
-                          value={imageUrl}
-                          onChange={(e) => setImageUrl(e.target.value)}
+                          placeholder="Or paste an image URL (https://...) to add to gallery"
+                          value={extraImageUrl}
+                          onChange={(e) => setExtraImageUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddUrlToGallery();
+                            }
+                          }}
                           className="w-full pl-8 pr-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
-                          id="form-image-url-input"
+                          id="form-extra-image-url-input"
                         />
                         <LinkIcon className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-2.5" />
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleAddUrlToGallery}
+                        disabled={!extraImageUrl.trim()}
+                        className="px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 text-neutral-200 text-xs font-semibold border border-neutral-700 transition-colors"
+                      >
+                        + Add to Gallery
+                      </button>
+                    </div>
 
-                      {/* Option 3: Quick Presets */}
-                      <div className="pt-1">
-                        <span className="text-[11px] text-neutral-400 block mb-1.5">
-                          Quick Presets (Click to pick sample image):
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {SUPPLEMENT_IMAGE_PRESETS.map((preset) => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => setImageUrl(preset.url)}
-                              className="text-[11px] px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-amber-400 border border-neutral-800 transition-colors"
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
+                    {/* Method 3: Quick Presets */}
+                    <div className="pt-1">
+                      <span className="text-[11px] text-neutral-400 block mb-1.5">
+                        Quick Supplement Presets (Click to add to gallery):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SUPPLEMENT_IMAGE_PRESETS.map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleAddPresetToGallery(preset.url)}
+                            className="text-[11px] px-2.5 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-amber-400 border border-neutral-800 transition-colors flex items-center gap-1"
+                          >
+                            <Plus className="w-2.5 h-2.5 text-amber-400" />
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>

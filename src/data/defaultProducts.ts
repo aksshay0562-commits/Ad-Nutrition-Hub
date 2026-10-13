@@ -12,6 +12,11 @@ export const INITIAL_PRODUCTS: Product[] = [
     flavour: "Rich Chocolate",
     description: "High-protein supplement for customers following a fitness and workout routine. Packed with 25g pure protein per scoop, rich in BCAAs and rapid digestion enzymes for accelerated recovery.",
     imageUrl: "https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80"
+    ],
     featured: true,
     brand: "Hyper Nutrition",
     youtubeUrl: "https://www.youtube.com/watch?v=Fj7rKq07J04",
@@ -37,6 +42,10 @@ export const INITIAL_PRODUCTS: Product[] = [
     flavour: "Belgian Chocolate",
     description: "High-protein supplement for customers following a fitness and Weight Gain. Provides balanced complex carbs, high biological value protein, and digestive enzymes for clean bulk without unwanted fat.",
     imageUrl: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80"
+    ],
     featured: true,
     brand: "Hyper Nutrition",
     youtubeUrl: "https://www.youtube.com/watch?v=W55V4rG2yv8",
@@ -48,7 +57,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       { date: "Sep 2026", price: 3300 }
     ],
     views: 1180,
-    salesCount: 350,
+    salesCount: 310,
     createdAt: new Date().toISOString()
   },
   {
@@ -62,6 +71,10 @@ export const INITIAL_PRODUCTS: Product[] = [
     flavour: "Unflavoured",
     description: "Advanced maximum strength and herbal recovery support formula. Enhances deep sleep recovery, lean muscle density, and workout power for intense training cycles.",
     imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=800&q=80"
+    ],
     featured: true,
     brand: "RW Performance",
     priceHistory: [

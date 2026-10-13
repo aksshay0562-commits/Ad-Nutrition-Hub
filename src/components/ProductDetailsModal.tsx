@@ -24,7 +24,10 @@ import {
   Play,
   QrCode,
   Star,
-  Zap
+  Zap,
+  ChevronLeft,
+  ChevronRight,
+  Camera
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -88,6 +91,35 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const [alertSuccess, setAlertSuccess] = React.useState<boolean>(false);
   const [alertError, setAlertError] = React.useState<string | null>(null);
   const [alertWhatsAppUrl, setAlertWhatsAppUrl] = React.useState<string>('');
+
+  // Multiple images gallery support (2 or more photos)
+  const productImages = React.useMemo(() => {
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    return product.imageUrl ? [product.imageUrl] : ['https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80'];
+  }, [product.images, product.imageUrl]);
+
+  const [activeImageIndex, setActiveImageIndex] = React.useState<number>(0);
+
+  // Reset active image index when product changes
+  React.useEffect(() => {
+    setActiveImageIndex(0);
+  }, [product.id]);
+
+  const activeImage = productImages[activeImageIndex] || product.imageUrl;
+
+  const handlePrevImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    triggerHaptic('light');
+    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+  };
+
+  const handleNextImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    triggerHaptic('light');
+    setActiveImageIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
+  };
 
   const discountPercent = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -256,20 +288,117 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         {/* Scrollable Content */}
         <div className="overflow-y-auto p-5 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* Left: Product Image */}
-            <div className="md:col-span-5 relative rounded-xl bg-neutral-950 border border-neutral-800 overflow-hidden aspect-square">
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-cover object-center"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
-                }}
-              />
-              {discountPercent && (
-                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-amber-500 text-neutral-950 text-xs font-black tracking-wider uppercase shadow-md">
-                  {discountPercent}% OFF
-                </span>
+            {/* Left: Product Image & Multi-Image Gallery */}
+            <div className="md:col-span-5 space-y-3">
+              {/* Main Image View */}
+              <div className="relative rounded-2xl bg-neutral-950 border border-neutral-800 overflow-hidden aspect-square group">
+                <img
+                  src={activeImage}
+                  alt={`${product.name} - View ${activeImageIndex + 1}`}
+                  className="w-full h-full object-cover object-center transition-all duration-300"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80';
+                  }}
+                />
+
+                {/* Discount Badge */}
+                {discountPercent && (
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-amber-500 text-neutral-950 text-xs font-black tracking-wider uppercase shadow-md pointer-events-none">
+                    {discountPercent}% OFF
+                  </span>
+                )}
+
+                {/* Multiple Images Indicator Counter Badge */}
+                {productImages.length > 1 && (
+                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-neutral-950/80 backdrop-blur-md text-amber-300 text-[11px] font-black border border-neutral-700 shadow-md pointer-events-none">
+                    <Camera className="w-3 h-3 text-amber-400" />
+                    <span>{activeImageIndex + 1} / {productImages.length}</span>
+                  </span>
+                )}
+
+                {/* Prev / Next Navigation Arrows for 2+ Images */}
+                {productImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevImage}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-neutral-950/80 hover:bg-amber-500 text-neutral-300 hover:text-neutral-950 flex items-center justify-center backdrop-blur-md border border-neutral-700/80 transition-all opacity-80 group-hover:opacity-100 shadow-lg"
+                      aria-label="Previous photo"
+                    >
+                      <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextImage}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-neutral-950/80 hover:bg-amber-500 text-neutral-300 hover:text-neutral-950 flex items-center justify-center backdrop-blur-md border border-neutral-700/80 transition-all opacity-80 group-hover:opacity-100 shadow-lg"
+                      aria-label="Next photo"
+                    >
+                      <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+                  </>
+                )}
+
+                {/* Dot Indicators on bottom */}
+                {productImages.length > 1 && (
+                  <div className="absolute bottom-2.5 inset-x-0 flex items-center justify-center gap-1.5 pointer-events-none">
+                    {productImages.map((_, dotIdx) => (
+                      <span
+                        key={dotIdx}
+                        className={`h-1.5 rounded-full transition-all ${
+                          dotIdx === activeImageIndex
+                            ? 'w-5 bg-amber-400'
+                            : 'w-1.5 bg-white/40'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail Gallery Row for 2 or more images */}
+              {productImages.length > 1 && (
+                <div className="space-y-1.5" id="product-details-gallery-thumbnails">
+                  <div className="flex items-center justify-between text-[11px] text-neutral-400 px-0.5">
+                    <span className="flex items-center gap-1 font-semibold text-neutral-300">
+                      <Camera className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{productImages.length} Photos Available</span>
+                    </span>
+                    <span className="text-[10.5px] text-neutral-500">Tap photo to switch</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                    {productImages.map((thumbSrc, thumbIdx) => {
+                      const isActive = thumbIdx === activeImageIndex;
+                      return (
+                        <button
+                          key={thumbIdx}
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setActiveImageIndex(thumbIdx);
+                          }}
+                          className={`relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                            isActive
+                              ? 'border-amber-400 ring-2 ring-amber-500/30 scale-105 shadow-md shadow-amber-500/10'
+                              : 'border-neutral-800 hover:border-neutral-700 opacity-70 hover:opacity-100'
+                          }`}
+                          aria-label={`View photo ${thumbIdx + 1}`}
+                        >
+                          <img
+                            src={thumbSrc}
+                            alt={`${product.name} thumbnail ${thumbIdx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {thumbIdx === 0 && (
+                            <span className="absolute bottom-0 inset-x-0 bg-neutral-950/80 text-[8px] font-black uppercase text-amber-300 text-center py-0.5">
+                              Cover
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
 

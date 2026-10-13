@@ -266,6 +266,7 @@ export function subscribeToProducts(
 export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
   const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   let finalImageUrl = productData.imageUrl;
+  let finalImages = productData.images;
 
   // Ensure image is compressed to stay well under Firestore's 1MB limit
   if (finalImageUrl && finalImageUrl.startsWith('data:image')) {
@@ -276,9 +277,26 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
     }
   }
 
+  // Compress any base64 images in multiple images gallery
+  if (Array.isArray(finalImages) && finalImages.length > 0) {
+    try {
+      finalImages = await Promise.all(
+        finalImages.map(async (img) => {
+          if (img && img.startsWith('data:image')) {
+            return await compressImage(img, 800, 800, 0.75);
+          }
+          return img;
+        })
+      );
+    } catch (e) {
+      console.warn('Could not compress gallery images in addProduct:', e);
+    }
+  }
+
   const payload: Product = sanitizeForFirestore({
     ...productData,
     imageUrl: finalImageUrl,
+    images: finalImages && finalImages.length > 0 ? finalImages : undefined,
     id: newId,
     createdAt: new Date().toISOString()
   });
@@ -370,6 +388,25 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
       }
     } catch (compErr) {
       console.warn('Could not compress large image before Firestore update:', compErr);
+    }
+  }
+
+  // Compress gallery images if present
+  if (Array.isArray(fullUpdated.images) && fullUpdated.images.length > 0) {
+    try {
+      fullUpdated.images = await Promise.all(
+        fullUpdated.images.map(async (img) => {
+          if (img && img.startsWith('data:image')) {
+            return await compressImage(img, 800, 800, 0.75);
+          }
+          return img;
+        })
+      );
+      if (updatedPayload.images) {
+        updatedPayload.images = fullUpdated.images;
+      }
+    } catch (compErr) {
+      console.warn('Could not compress gallery images before Firestore update:', compErr);
     }
   }
 

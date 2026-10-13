@@ -364,6 +364,7 @@ app.post('/api/products', async (req, res) => {
       weightOrSize,
       flavour,
       imageUrl,
+      images,
       brand,
       featured
     } = req.body;
@@ -373,6 +374,16 @@ app.post('/api/products', async (req, res) => {
     }
 
     const optimizedImageUrl = await optimizeBase64Image(imageUrl);
+    let optimizedImages: string[] | undefined = undefined;
+    if (Array.isArray(images) && images.length > 0) {
+      const results = await Promise.all(
+        images.slice(0, 10).map(async (img: string) => {
+          const opt = await optimizeBase64Image(img);
+          return opt || img;
+        })
+      );
+      optimizedImages = results.filter((img): img is string => Boolean(img));
+    }
 
     const products = readProducts();
     const newProduct = {
@@ -385,7 +396,8 @@ app.post('/api/products', async (req, res) => {
       description: description ? String(description).trim() : '',
       weightOrSize: weightOrSize ? String(weightOrSize).trim() : undefined,
       flavour: flavour ? String(flavour).trim() : undefined,
-      imageUrl: optimizedImageUrl || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80',
+      imageUrl: optimizedImageUrl || (optimizedImages && optimizedImages[0]) || 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?auto=format&fit=crop&w=800&q=80',
+      images: optimizedImages && optimizedImages.length > 0 ? optimizedImages : undefined,
       brand: brand ? String(brand).trim() : 'AD Nutrition Hub',
       featured: Boolean(featured),
       createdAt: new Date().toISOString(),
@@ -420,10 +432,28 @@ app.put('/api/products/:id', async (req, res) => {
       updatedImageUrl = await optimizeBase64Image(updatedImageUrl);
     }
 
+    let updatedImages: string[] | undefined = undefined;
+    if (req.body.images !== undefined) {
+      if (Array.isArray(req.body.images) && req.body.images.length > 0) {
+        const results = await Promise.all(
+          req.body.images.slice(0, 10).map(async (img: string) => {
+            const opt = await optimizeBase64Image(img);
+            return opt || img;
+          })
+        );
+        updatedImages = results.filter((img): img is string => Boolean(img));
+      } else {
+        updatedImages = undefined;
+      }
+    } else {
+      updatedImages = existing.images;
+    }
+
     const updated = {
       ...existing,
       ...req.body,
       imageUrl: updatedImageUrl,
+      images: updatedImages,
       id: existing.id, // Immutable ID
       price: req.body.price !== undefined ? Number(req.body.price) : existing.price,
       originalPrice: req.body.originalPrice !== undefined ? Number(req.body.originalPrice) : existing.originalPrice,

@@ -14,6 +14,7 @@ export interface Product {
   weightOrSize?: string;
   flavour?: string;
   imageUrl: string;
+  images?: string[]; // Array for 2 or more product images (front, nutrition facts, scoop, labels)
   featured?: boolean;
   brand?: string;
   youtubeUrl?: string;

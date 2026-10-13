@@ -36,8 +36,14 @@ import {
   RefreshCw,
   Activity,
   CreditCard,
-  FileText
+  FileText,
+  CloudLightning,
+  Wifi,
+  WifiOff,
+  AlertCircle,
+  CloudOff
 } from 'lucide-react';
+import { orderTrackerSyncService, CachedWhatsAppOrderAttempt } from '../services/orderTrackerSyncService';
 import { STORE_INFO } from '../types';
 import { 
   WhatsAppLine, 
@@ -94,7 +100,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
 
   // Order Tracking feature states
   const [showOrderTracker, setShowOrderTracker] = useState(false);
-  const [trackerTab, setTrackerTab] = useState<'search' | 'history'>('search');
+  const [trackerTab, setTrackerTab] = useState<'search' | 'history' | 'sync'>('search');
   const [orderIdInput, setOrderIdInput] = useState('');
   const [orderNoteInput, setOrderNoteInput] = useState('');
   const [orderIdError, setOrderIdError] = useState<string | null>(null);
@@ -102,6 +108,22 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   const [showTrackingPreview, setShowTrackingPreview] = useState(false);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'All' | OrderTrackingStatus>('All');
+
+  // Background Sync Queue states
+  const [syncQueue, setSyncQueue] = useState<CachedWhatsAppOrderAttempt[]>(() =>
+    orderTrackerSyncService.getQueue()
+  );
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+  const [copiedSyncId, setCopiedSyncId] = useState<string | null>(null);
+
+  const pendingSyncCount = React.useMemo(
+    () => syncQueue.filter((item) => item.status === 'pending' || item.status === 'retrying').length,
+    [syncQueue]
+  );
 
   // Compute status counts for the quick-filter bar
   const statusCounts = React.useMemo(() => {
@@ -268,6 +290,37 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     }
   }, [showOrderTracker]);
 
+  // Subscribe to Background Sync Service for offline caching and automatic reconnect retries
+  useEffect(() => {
+    const unsubscribe = orderTrackerSyncService.subscribe((updatedQueue) => {
+      setSyncQueue(updatedQueue);
+    });
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      triggerHaptic('success');
+      setSyncFeedback('Connection restored! Retrying queued WhatsApp queries...');
+      setTimeout(() => setSyncFeedback(null), 4000);
+      refreshHistory();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      triggerHaptic('warning');
+      setSyncFeedback('Offline mode active. Queries will be saved in Sync Queue.');
+      setTimeout(() => setSyncFeedback(null), 4000);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const generateTrackingMessage = (orderId: string, note?: string): string => {
     const trimmed = orderId.trim();
     const noteText = note?.trim();
@@ -287,7 +340,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     return msg;
   };
 
-  const executeTrackOrderId = (idToTrack: string, statusHint?: OrderTrackingStatus, note?: string) => {
+  const executeTrackOrderId = async (idToTrack: string, statusHint?: OrderTrackingStatus, note?: string) => {
     const trimmed = idToTrack.trim();
     if (!trimmed) {
       triggerHaptic('error');
@@ -296,18 +349,77 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
     }
 
     setOrderIdError(null);
-    triggerHaptic('success');
-
     const effectiveNote = note !== undefined ? note.trim() : orderNoteInput.trim();
 
-    // Persist into localStorage history (stores up to last 5 searched order IDs with status and note)
-    const updated = recordOrderSearch(trimmed, statusHint || 'Enquiry Sent', undefined, effectiveNote);
-    setTrackingHistory(updated);
+    try {
+      const res = await orderTrackerSyncService.trackOrderWithSync({
+        orderId: trimmed,
+        orderNote: effectiveNote,
+        statusHint: statusHint || 'Enquiry Sent',
+        source: 'search_form',
+      });
 
-    const message = generateTrackingMessage(trimmed, effectiveNote);
-    const targetPhone = STORE_INFO.rawPhone1; // Line 1: Orders line
-    const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+      refreshHistory();
+
+      if (res.cached) {
+        triggerHaptic('warning');
+        setSyncFeedback(
+          res.message || 'Offline: Query cached in Background Sync. Will auto-retry on reconnect.'
+        );
+        setTimeout(() => setSyncFeedback(null), 4500);
+      } else {
+        triggerHaptic('success');
+        setSyncFeedback('Opening WhatsApp Orders line...');
+        setTimeout(() => setSyncFeedback(null), 2500);
+      }
+    } catch (err) {
+      triggerHaptic('error');
+      setOrderIdError(err instanceof Error ? err.message : 'Failed to process tracking request');
+    }
+  };
+
+  const handleManualSyncRetryAll = async () => {
+    triggerHaptic('medium');
+    setIsSyncing(true);
+    try {
+      const res = await orderTrackerSyncService.handleNetworkRestored();
+      refreshHistory();
+      if (res.retried > 0) {
+        triggerHaptic('success');
+        setSyncFeedback(`Successfully retried ${res.succeeded}/${res.retried} queued queries!`);
+      } else {
+        setSyncFeedback('Sync queue verified. All queries up to date.');
+      }
+      setTimeout(() => setSyncFeedback(null), 3500);
+    } catch {
+      triggerHaptic('error');
+      setSyncFeedback('Sync attempt failed. Please check network.');
+      setTimeout(() => setSyncFeedback(null), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRetrySingleSync = async (id: string, launch: boolean = true) => {
+    triggerHaptic('light');
+    const ok = await orderTrackerSyncService.retryItem(id, launch);
+    refreshHistory();
+    if (ok) {
+      triggerHaptic('success');
+      setSyncFeedback('Query retried successfully!');
+      setTimeout(() => setSyncFeedback(null), 2500);
+    } else {
+      triggerHaptic('error');
+    }
+  };
+
+  const handleCopySyncUrl = (item: CachedWhatsAppOrderAttempt) => {
+    triggerHaptic('light');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(item.whatsappUrl);
+      setCopiedSyncId(item.id);
+      setTimeout(() => setCopiedSyncId(null), 2000);
+    }
   };
 
   const handleTrackOrder = (e?: React.FormEvent) => {
@@ -1297,15 +1409,100 @@ Visit the online catalog or walk in to check batch verification and current in-s
                 </button>
               </div>
 
-              {/* Segmented Tab Navigation: Search vs History */}
-              <div className="grid grid-cols-2 p-1 rounded-xl bg-neutral-950 border border-neutral-800 text-xs font-bold relative">
+              {/* Network Status & Background Sync Alert Bar */}
+              <div
+                className={`px-2.5 py-1.5 rounded-xl text-[10.5px] border flex items-center justify-between gap-2 transition-all ${
+                  !isOnline
+                    ? 'bg-amber-950/60 border-amber-500/40 text-amber-200'
+                    : pendingSyncCount > 0
+                    ? 'bg-sky-950/60 border-sky-500/40 text-sky-200'
+                    : 'bg-neutral-950/60 border-neutral-800 text-neutral-300'
+                }`}
+                id="order-tracker-sync-status-bar"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {!isOnline ? (
+                    <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  ) : pendingSyncCount > 0 ? (
+                    <CloudLightning className="w-3.5 h-3.5 text-sky-400 shrink-0 animate-pulse" />
+                  ) : (
+                    <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  )}
+
+                  <div className="truncate">
+                    {!isOnline ? (
+                      <span className="font-semibold text-amber-300">
+                        Offline Mode: Outgoing queries cached
+                      </span>
+                    ) : pendingSyncCount > 0 ? (
+                      <span className="font-semibold text-sky-300">
+                        {pendingSyncCount} query pending sync
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400 text-[10px]">
+                        Sync active • Direct WhatsApp dispatch
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {pendingSyncCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleManualSyncRetryAll}
+                      disabled={isSyncing}
+                      className="px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[9.5px] font-bold border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Retry queued WhatsApp URL generation attempts now"
+                      id="order-tracker-retry-sync-btn"
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <span>Retry</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setTrackerTab('sync');
+                    }}
+                    className={`px-1.5 py-0.5 rounded-lg text-[9.5px] font-mono transition-colors ${
+                      trackerTab === 'sync'
+                        ? 'bg-amber-400 text-neutral-950 font-bold'
+                        : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                    title="Open Background Sync Queue"
+                  >
+                    Queue ({syncQueue.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Sync Feedback Toast Banner */}
+              <AnimatePresence>
+                {syncFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10.5px] flex items-center gap-1.5 font-medium shadow-sm overflow-hidden"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="leading-snug">{syncFeedback}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Segmented Tab Navigation: Search vs History vs Sync Queue */}
+              <div className="grid grid-cols-3 p-1 rounded-xl bg-neutral-950 border border-neutral-800 text-xs font-bold relative">
                 <button
                   type="button"
                   onClick={() => {
                     triggerHaptic('light');
                     setTrackerTab('search');
                   }}
-                  className={`relative z-10 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative z-10 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     trackerTab === 'search'
                       ? 'text-neutral-950 font-black'
                       : 'text-neutral-400 hover:text-white'
@@ -1330,7 +1527,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     setTrackerTab('history');
                     refreshHistory();
                   }}
-                  className={`relative z-10 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative z-10 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     trackerTab === 'history'
                       ? 'text-neutral-950 font-black'
                       : 'text-neutral-400 hover:text-white'
@@ -1347,10 +1544,37 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     />
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setTrackerTab('sync');
+                  }}
+                  className={`relative z-10 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    trackerTab === 'sync'
+                      ? 'text-neutral-950 font-black'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  id="order-tracker-tab-sync"
+                >
+                  <CloudLightning className="w-3.5 h-3.5" />
+                  <span>Sync ({syncQueue.length})</span>
+                  {pendingSyncCount > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse ml-0.5" />
+                  )}
+                  {trackerTab === 'sync' && (
+                    <motion.div
+                      layoutId="activeTrackerTabPill"
+                      className="absolute inset-0 bg-amber-400 rounded-lg -z-10 shadow-sm"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
               </div>
 
               {/* Tab 1: Search Form View */}
-              {trackerTab === 'search' ? (
+              {trackerTab === 'search' && (
                 <form onSubmit={handleTrackOrder} className="space-y-3">
                   <div>
                     <label className="text-[11px] font-bold text-neutral-300 block mb-1">
@@ -1416,7 +1640,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                       )}
                     </div>
                     <p className="text-[9.5px] text-neutral-400 mt-1">
-                      Included directly in your WhatsApp message and saved with your order history.
+                      Cached in Background Sync queue and included in the WhatsApp query.
                     </p>
                   </div>
 
@@ -1509,7 +1733,7 @@ Visit the online catalog or walk in to check batch verification and current in-s
                       id="submit-order-tracking-btn"
                     >
                       <MessageCircle className="w-4 h-4 fill-neutral-950 text-neutral-950" />
-                      <span>Send Tracking Query to Orders Line</span>
+                      <span>{!isOnline ? 'Queue for Background Sync' : 'Send Tracking Query to Orders Line'}</span>
                       <ExternalLink className="w-3.5 h-3.5 text-neutral-950" />
                     </motion.button>
 
@@ -1521,8 +1745,10 @@ Visit the online catalog or walk in to check batch verification and current in-s
                     </a>
                   </div>
                 </form>
-              ) : (
-                /* Tab 2: Persistent History View (Displays Last 5 Searched Orders with Distinct Backgrounds & Quick-Filter) */
+              )}
+
+              {/* Tab 2: Persistent History View (Displays Last 5 Searched Orders with Distinct Backgrounds & Quick-Filter) */}
+              {trackerTab === 'history' && (
                 <div className="space-y-3" id="order-tracking-history-view">
                   {/* History View Sub-header with Refresh Status & Quick CSV Export */}
                   <div className="flex items-center justify-between gap-1.5 text-[11px] font-bold text-neutral-300 pb-1 border-b border-neutral-800/80">
@@ -1903,6 +2129,18 @@ Visit the online catalog or walk in to check batch verification and current in-s
                               </div>
 
                               <div className="flex items-center gap-1">
+                                {syncQueue.some(
+                                  (q) => q.orderId.toLowerCase() === item.orderId.toLowerCase() && (q.status === 'pending' || q.status === 'retrying')
+                                ) && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1"
+                                    title="Query cached in Background Sync Queue"
+                                    id={`history-order-sync-badge-${item.orderId}`}
+                                  >
+                                    <CloudLightning className="w-2.5 h-2.5 animate-pulse" />
+                                    <span>Queued</span>
+                                  </span>
+                                )}
                                 <button
                                   type="button"
                                   onClick={(e) => handleRemoveHistoryItem(item.orderId, e)}
@@ -2105,6 +2343,149 @@ Visit the online catalog or walk in to check batch verification and current in-s
                         </span>
                       </span>
                       <span className="text-neutral-600">60s Live Sync</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Background Sync Queue View */}
+              {trackerTab === 'sync' && (
+                <div className="space-y-3" id="order-tracker-sync-queue-view">
+                  <div className="flex items-center justify-between pb-1 border-b border-neutral-800 text-[11px] font-bold text-neutral-300">
+                    <span className="flex items-center gap-1.5">
+                      <CloudLightning className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Background Sync Queue</span>
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {pendingSyncCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleManualSyncRetryAll}
+                          disabled={isSyncing}
+                          className="px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[10px] font-bold border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          id="sync-queue-retry-all-btn"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                          <span>Retry All ({pendingSyncCount})</span>
+                        </button>
+                      )}
+
+                      {syncQueue.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('medium');
+                            orderTrackerSyncService.clearQueue();
+                          }}
+                          className="px-1.5 py-0.5 rounded-lg text-[10px] text-neutral-400 hover:text-red-400 bg-neutral-950 hover:bg-neutral-800 transition-colors cursor-pointer"
+                          title="Clear all queue items"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[10.5px] text-neutral-400 leading-relaxed">
+                    When you're offline or connectivity drops, your order tracking queries are cached here. The service automatically dispatches them as soon as the network returns.
+                  </p>
+
+                  {syncQueue.length === 0 ? (
+                    <div className="py-8 text-center space-y-2 bg-neutral-950/50 rounded-xl border border-neutral-800/60 p-4">
+                      <CloudOff className="w-8 h-8 text-neutral-600 mx-auto" />
+                      <p className="text-xs font-bold text-white">Sync Queue is Empty</p>
+                      <p className="text-[10.5px] text-neutral-400">
+                        All outgoing WhatsApp URL generation attempts have been dispatched or synced.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-0.5">
+                      {syncQueue.map((item) => {
+                        const isPending = item.status === 'pending' || item.status === 'retrying';
+                        const isSynced = item.status === 'synced';
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3 rounded-2xl border space-y-2 transition-all ${
+                              isPending
+                                ? 'bg-gradient-to-br from-sky-950/40 via-neutral-950 to-neutral-950 border-sky-500/40'
+                                : isSynced
+                                ? 'bg-gradient-to-br from-emerald-950/40 via-neutral-950 to-neutral-950 border-emerald-500/40'
+                                : 'bg-neutral-950 border-neutral-800'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-xs text-white">
+                                  #{item.orderId}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                    isPending
+                                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 animate-pulse'
+                                      : isSynced
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                      : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                  }`}
+                                >
+                                  {item.status}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopySyncUrl(item)}
+                                  className="p-1 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                                  title="Copy generated WhatsApp URL"
+                                >
+                                  {copiedSyncId === item.id ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    orderTrackerSyncService.removeQueueItem(item.id);
+                                  }}
+                                  className="p-1 rounded text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
+                                  title="Delete from queue"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {item.orderNote && (
+                              <div className="text-[10px] text-amber-200/90 bg-neutral-950/80 p-1.5 rounded-lg border border-amber-500/20 truncate">
+                                <span className="font-bold text-amber-400 mr-1">Note:</span>
+                                <span>{item.orderNote}</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between text-[9.5px] text-neutral-400">
+                              <span>Attempts: {item.attempts}</span>
+                              <span>{formatOrderRelativeTime(item.createdAt)}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 pt-1 border-t border-neutral-900">
+                              <button
+                                type="button"
+                                onClick={() => handleRetrySingleSync(item.id, true)}
+                                className="flex-1 py-1 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                              >
+                                <MessageCircle className="w-3 h-3 fill-neutral-950" />
+                                <span>Launch on WhatsApp</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
