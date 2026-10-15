@@ -36,26 +36,26 @@ service cloud.firestore {
     }
 
     function isValidProduct(data) {
-      return data.keys().hasAll(['name', 'price', 'category', 'availability', 'imageUrl']) &&
+      return data.keys().hasAll(['name', 'price', 'category', 'availability', 'description', 'imageUrl']) &&
         data.keys().hasOnly(['id', 'name', 'price', 'originalPrice', 'category', 'weightOrSize', 'flavour', 'availability', 'description', 'imageUrl', 'images', 'featured', 'brand', 'youtubeUrl', 'priceHistory', 'views', 'salesCount', 'createdAt', 'updatedAt']) &&
-        data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 150 &&
         data.price is number && data.price >= 0 &&
         (!('originalPrice' in data) || (data.originalPrice is number && data.originalPrice >= 0)) &&
-        data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
-        (!('weightOrSize' in data) || (data.weightOrSize is string && data.weightOrSize.size() <= 100)) &&
-        (!('flavour' in data) || (data.flavour is string && data.flavour.size() <= 100)) &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+        (!('weightOrSize' in data) || (data.weightOrSize is string && data.weightOrSize.size() <= 80)) &&
+        (!('flavour' in data) || (data.flavour is string && data.flavour.size() <= 80)) &&
         (data.availability in ['In Stock', 'Out of Stock']) &&
-        (!('description' in data) || (data.description is string && data.description.size() <= 20000)) &&
+        data.description is string && data.description.size() <= 10000 &&
         data.imageUrl is string && data.imageUrl.size() <= 1500000 &&
-        (!('images' in data) || (data.images is list && data.images.size() <= 25)) &&
+        (!('images' in data) || (data.images is list && data.images.size() <= 20)) &&
         (!('featured' in data) || data.featured is bool) &&
-        (!('brand' in data) || (data.brand is string && data.brand.size() <= 120)) &&
-        (!('youtubeUrl' in data) || (data.youtubeUrl is string && data.youtubeUrl.size() <= 500)) &&
+        (!('brand' in data) || (data.brand is string && data.brand.size() <= 100)) &&
+        (!('youtubeUrl' in data) || (data.youtubeUrl is string && data.youtubeUrl.size() <= 300)) &&
         (!('priceHistory' in data) || data.priceHistory is list) &&
         (!('views' in data) || (data.views is number && data.views >= 0)) &&
         (!('salesCount' in data) || (data.salesCount is number && data.salesCount >= 0)) &&
-        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 50)) &&
-        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 40)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 40));
     }
 
     function isValidUserProfile(data) {

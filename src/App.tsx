@@ -1180,13 +1180,11 @@ export default function App() {
       />
 
       {/* Product QR Shelf Tag / Share Modal */}
-      {qrModalProduct && (
-        <ProductQRModal
-          product={qrModalProduct}
-          isOpen={Boolean(qrModalProduct)}
-          onClose={() => setQrModalProduct(null)}
-        />
-      )}
+      <ProductQRModal
+        product={qrModalProduct}
+        isOpen={Boolean(qrModalProduct)}
+        onClose={() => setQrModalProduct(null)}
+      />
 
       {/* App Colour & Background Theme Customizer Modal */}
       <ThemeModal
@@ -1209,29 +1207,25 @@ export default function App() {
       />
 
       {/* Quick Order with Quantity & Delivery Modal */}
-      {quickOrderProduct && (
-        <QuickOrderModal
-          product={quickOrderProduct}
-          isOpen={Boolean(quickOrderProduct)}
-          onClose={() => setQuickOrderProduct(null)}
-          onOpenDetails={(p) => {
-            setQuickOrderProduct(null);
-            setSelectedProduct(p);
-          }}
-          onOpenPaymentQR={(amt, method) => handleOpenPaymentQR(amt, quickOrderProduct ? { name: quickOrderProduct.name, price: quickOrderProduct.price } : undefined, method)}
-        />
-      )}
+      <QuickOrderModal
+        product={quickOrderProduct}
+        isOpen={Boolean(quickOrderProduct)}
+        onClose={() => setQuickOrderProduct(null)}
+        onOpenDetails={(p) => {
+          setQuickOrderProduct(null);
+          setSelectedProduct(p);
+        }}
+        onOpenPaymentQR={(amt, method) => handleOpenPaymentQR(amt, quickOrderProduct ? { name: quickOrderProduct.name, price: quickOrderProduct.price } : undefined, method)}
+      />
 
       {/* Official Store UPI Payment QR Code Modal (PhonePe Merchant & Kotak Mahindra Bank) */}
-      {isPaymentQRModalOpen && (
-        <PaymentQRModal
-          isOpen={isPaymentQRModalOpen}
-          onClose={() => setIsPaymentQRModalOpen(false)}
-          initialAmount={paymentQRAmount}
-          initialMethod={paymentQRMethod}
-          productContext={paymentQRProduct}
-        />
-      )}
+      <PaymentQRModal
+        isOpen={isPaymentQRModalOpen}
+        onClose={() => setIsPaymentQRModalOpen(false)}
+        initialAmount={paymentQRAmount}
+        initialMethod={paymentQRMethod}
+        productContext={paymentQRProduct}
+      />
       {/* PWA Offline / Online Connectivity Indicator */}
       <OfflineIndicator />
     </div>
