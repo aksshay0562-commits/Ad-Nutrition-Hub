@@ -27,7 +27,14 @@ import {
   Activity,
   Star,
   Layers,
-  Plus
+  Plus,
+  Globe,
+  ExternalLink,
+  MapPin,
+  Search,
+  Sparkles,
+  Share2,
+  Check
 } from 'lucide-react';
 import { Product, CATEGORIES, CategoryType } from '../types';
 import { formatPrice, getYoutubeVideoId } from '../services/productService';
@@ -46,6 +53,12 @@ import {
   seedInitialScanAnalyticsIfEmpty 
 } from '../services/scanAnalyticsService';
 import { SiteVisitStats } from '../services/visitService';
+import { 
+  getActiveStoreConfig, 
+  saveActiveStoreConfig, 
+  resetActiveStoreConfig, 
+  GoogleSiteConfig 
+} from '../services/storeConfigService';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -105,13 +118,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   visitStats,
   onOpenVisitStats
 }) => {
-  const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'analytics' | 'manage' | 'backup'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'scan' | 'analytics' | 'manage' | 'backup' | 'google-site'>('form');
   const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
   const { signInWithGoogle, authError } = useAuth();
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Google Site & SEO Settings State
+  const [googleConfig, setGoogleConfig] = useState<GoogleSiteConfig>(() => getActiveStoreConfig());
+  const [googleSiteSaved, setGoogleSiteSaved] = useState(false);
+  const [googlePreviewDevice, setGooglePreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
 
   // Scan Analytics State
   const [scanAnalytics, setScanAnalytics] = useState<ScanAnalyticsData>(() => getScanAnalytics());
@@ -711,6 +729,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Backup & Reset</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveTab('google-site');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${
+                  activeTab === 'google-site'
+                    ? 'border-amber-500 text-amber-400 bg-neutral-800/40'
+                    : 'border-transparent text-neutral-400 hover:text-white'
+                }`}
+                id="admin-tab-google-site"
+              >
+                <Globe className="w-3.5 h-3.5 text-amber-400" />
+                <span>Google Site & SEO</span>
               </button>
             </div>
 
@@ -1807,6 +1841,300 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span>Reset to Initial Products</span>
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Tab 5: Google Site & SEO Presence */}
+            {activeTab === 'google-site' && (
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 max-w-3xl mx-auto">
+                {/* Header card with Google branding */}
+                <div className="p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-2 shadow-sm shrink-0">
+                        {/* Google Multi-color G logo */}
+                        <svg className="w-6 h-6" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-white flex items-center gap-2">
+                          Google Site & Profile Settings
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                            Live Sync
+                          </span>
+                        </h3>
+                        <p className="text-xs text-neutral-400">
+                          Apna Google Site link, Google Maps location aur Google Search appearance yahan se change karein.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick test buttons */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-800/80">
+                    {googleConfig.googleSiteUrl && (
+                      <a
+                        href={googleConfig.googleSiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs font-semibold border border-neutral-800 transition-colors"
+                        id="admin-test-google-site-btn"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Open Google Site</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5 opacity-70" />
+                      </a>
+                    )}
+
+                    <a
+                      href={googleConfig.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white text-xs font-semibold border border-neutral-800 transition-colors"
+                      id="admin-test-google-maps-btn"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-red-400" />
+                      <span>Open Google Maps</span>
+                      <ExternalLink className="w-3 h-3 ml-0.5 opacity-70" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Edit Form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    triggerHaptic('success');
+                    saveActiveStoreConfig(googleConfig);
+                    setGoogleSiteSaved(true);
+                    setFeedbackMessage({ type: 'success', text: 'Store & SEO settings saved successfully!' });
+                    setTimeout(() => setGoogleSiteSaved(false), 3000);
+                  }}
+                  className="p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-4 text-left"
+                >
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-amber-400" />
+                    <span>Store Links & Details</span>
+                  </h4>
+
+                  {/* Google Site URL (Optional) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-neutral-300 block">
+                        Google Site URL (Optional)
+                      </label>
+                      {googleConfig.googleSiteUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGoogleConfig({ ...googleConfig, googleSiteUrl: '' });
+                            saveActiveStoreConfig({ googleSiteUrl: '' });
+                            setFeedbackMessage({ type: 'success', text: 'Google site link removed successfully!' });
+                          }}
+                          className="text-[11px] text-red-400 hover:text-red-300 font-semibold hover:underline"
+                        >
+                          Remove Link
+                        </button>
+                      ) : (
+                        <span className="text-[10.5px] text-neutral-500 italic">Link removed (Empty)</span>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      value={googleConfig.googleSiteUrl || ''}
+                      onChange={(e) => setGoogleConfig({ ...googleConfig, googleSiteUrl: e.target.value })}
+                      placeholder="Leave empty or enter custom website URL"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                    <p className="text-[11px] text-neutral-400">
+                      Google site ka link hatane ke liye ise empty chhod dein ya "Remove Link" par click karein.
+                    </p>
+                  </div>
+
+                  {/* Google Maps URL */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-300 block">
+                      Google Maps Location & Directions URL
+                    </label>
+                    <input
+                      type="url"
+                      value={googleConfig.googleMapsUrl}
+                      onChange={(e) => setGoogleConfig({ ...googleConfig, googleMapsUrl: e.target.value })}
+                      placeholder="https://www.google.com/maps/search/?api=1&query=Mandi+Mor+Israna+Panipat+Haryana"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500 font-mono"
+                      required
+                    />
+                    <p className="text-[11px] text-neutral-400">
+                      Google Maps par shop ki exact location ka link.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Rating */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-neutral-300 block">
+                        Google Rating (Stars)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="5"
+                        value={googleConfig.googleRating}
+                        onChange={(e) => setGoogleConfig({ ...googleConfig, googleRating: parseFloat(e.target.value) || 4.9 })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500 font-mono"
+                      />
+                    </div>
+
+                    {/* Review Count */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-neutral-300 block">
+                        Google Review Count
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={googleConfig.googleReviewsCount}
+                        onChange={(e) => setGoogleConfig({ ...googleConfig, googleReviewsCount: parseInt(e.target.value) || 148 })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Google Search Page Title */}
+                  <div className="space-y-1.5 pt-2 border-t border-neutral-850">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-neutral-300 block">
+                        Google Search Title (Page Title for Google)
+                      </label>
+                      <span className={`text-[10.5px] font-mono ${googleConfig.googleSearchTitle.length > 60 ? 'text-amber-400' : 'text-neutral-500'}`}>
+                        {googleConfig.googleSearchTitle.length}/60 chars
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={googleConfig.googleSearchTitle}
+                      onChange={(e) => setGoogleConfig({ ...googleConfig, googleSearchTitle: e.target.value })}
+                      placeholder="AD Nutrition Hub Israna — 100% Genuine Nutrition & Supplements"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500"
+                      maxLength={75}
+                      required
+                    />
+                  </div>
+
+                  {/* Google Meta Description */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-neutral-300 block">
+                        Google Search Description (Snippet)
+                      </label>
+                      <span className={`text-[10.5px] font-mono ${googleConfig.googleSearchDescription.length > 160 ? 'text-amber-400' : 'text-neutral-500'}`}>
+                        {googleConfig.googleSearchDescription.length}/160 chars
+                      </span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={googleConfig.googleSearchDescription}
+                      onChange={(e) => setGoogleConfig({ ...googleConfig, googleSearchDescription: e.target.value })}
+                      placeholder="Premier authentic fitness and bodybuilding supplement store at Mandi Mor, Israna, Panipat (Haryana). Whey protein, gainers, creatine, pre-workout with fast WhatsApp orders."
+                      className="w-full px-3.5 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-amber-500"
+                      maxLength={180}
+                      required
+                    />
+                  </div>
+
+                  {/* Live Google Search Result Preview */}
+                  <div className="p-4 rounded-xl bg-neutral-900/90 border border-neutral-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+                        <Search className="w-3 h-3 text-amber-400" />
+                        Live Google Search Result Preview
+                      </span>
+                      <div className="flex items-center gap-1 bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setGooglePreviewDevice('mobile')}
+                          className={`px-2 py-0.5 rounded ${googlePreviewDevice === 'mobile' ? 'bg-amber-500 text-neutral-950 font-bold' : 'text-neutral-400'}`}
+                        >
+                          Mobile
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGooglePreviewDevice('desktop')}
+                          className={`px-2 py-0.5 rounded ${googlePreviewDevice === 'desktop' ? 'bg-amber-500 text-neutral-950 font-bold' : 'text-neutral-400'}`}
+                        >
+                          Desktop
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Google card preview box */}
+                    <div className="p-3.5 rounded-lg bg-[#202124] border border-[#3c4043] text-left font-sans space-y-1.5">
+                      <div className="flex items-center gap-2 text-[12px] text-[#bdc1c6]">
+                        <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center p-0.5">
+                          <span className="text-[9px] font-black text-neutral-900">AD</span>
+                        </div>
+                        <div className="leading-tight">
+                          <span className="font-medium text-white block text-[11px]">AD Nutrition Hub Israna</span>
+                          <span className="text-[10px] text-[#9aa0a6] font-mono">https://adnutritionhubisrana.com › mandi-mor-israna</span>
+                        </div>
+                      </div>
+
+                      <div className="text-[15px] sm:text-[17px] text-[#8ab4f8] hover:underline font-normal cursor-pointer leading-snug">
+                        {googleConfig.googleSearchTitle || 'AD Nutrition Hub Israna'}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#f2994a]">
+                        <span>★★★★★</span>
+                        <span className="text-[#bdc1c6] font-medium">{googleConfig.googleRating.toFixed(1)}</span>
+                        <span className="text-[#9aa0a6]">({googleConfig.googleReviewsCount})</span>
+                        <span className="text-[#9aa0a6]">· Health & Supplement Store · Mandi Mor</span>
+                      </div>
+
+                      <p className="text-[12.5px] text-[#bdc1c6] leading-relaxed">
+                        {googleConfig.googleSearchDescription || '100% Authentic Nutrition & Fitness Supplements in Israna, Panipat.'}
+                      </p>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[#3c4043]/60 text-[11px] text-[#8ab4f8]">
+                        <span className="hover:underline cursor-pointer">Whey Protein</span>
+                        <span className="hover:underline cursor-pointer">Creatine & Gainers</span>
+                        <span className="hover:underline cursor-pointer">WhatsApp Order</span>
+                        <span className="hover:underline cursor-pointer">Store Location</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save button */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                      id="admin-save-google-site-btn"
+                    >
+                      {googleSiteSaved ? <Check className="w-4 h-4 text-neutral-950" /> : <Save className="w-4 h-4" />}
+                      <span>{googleSiteSaved ? 'Saved Successfully!' : 'Save Google Site Changes'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Google site settings ko default par reset karna chahte hain?')) {
+                          const def = resetActiveStoreConfig();
+                          setGoogleConfig(def);
+                          setFeedbackMessage({ type: 'success', text: 'Reset to default Google site configuration!' });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white text-xs font-medium border border-neutral-800 transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Reset to Defaults</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
           </div>

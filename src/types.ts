@@ -113,6 +113,8 @@ export interface StoreInfo {
     sunday: string;
   };
   googleMapsUrl: string;
+  googleSiteUrl?: string;
+  googleBusinessUrl: string;
   instagram: string;
   facebook: string;
   payment: StorePaymentInfo;
@@ -151,6 +153,8 @@ export const STORE_INFO: StoreInfo = {
     sunday: "9:00 AM - 8:00 PM"
   },
   googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Mandi+Mor+Israna+Panipat+Haryana",
+  googleSiteUrl: "",
+  googleBusinessUrl: "https://maps.google.com/?q=AD+Nutrition+Hub+Israna+Mandi+Mor+Panipat",
   instagram: "https://www.instagram.com/ad_nutrition_hub_israna",
   facebook: "https://www.facebook.com/adnutritionhubisrana",
   payment: {

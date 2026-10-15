@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, 
   Phone, 
@@ -15,11 +15,14 @@ import {
   Activity,
   TrendingUp,
   BarChart3,
-  QrCode
+  QrCode,
+  Globe,
+  Star
 } from 'lucide-react';
 import { STORE_INFO, CATEGORIES } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { SiteVisitStats } from '../services/visitService';
+import { getActiveStoreConfig, STORE_CONFIG_UPDATED_EVENT } from '../services/storeConfigService';
 
 interface FooterProps {
   onCategorySelect: (category: string) => void;
@@ -42,6 +45,17 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenVisitStats,
   onOpenPaymentQR
 }) => {
+  const [storeConfig, setStoreConfig] = useState(() => getActiveStoreConfig());
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setStoreConfig(e.detail);
+      else setStoreConfig(getActiveStoreConfig());
+    };
+    window.addEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+  }, []);
+
   return (
     <footer id="app-footer" className="bg-neutral-950 border-t border-neutral-800 text-neutral-400 text-xs">
       {/* Upper Footer */}

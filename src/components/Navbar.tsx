@@ -4,6 +4,7 @@ import { STORE_INFO } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { PWAInstallButton } from './PWAInstallButton';
 import { SiteVisitStats } from '../services/visitService';
+import { getActiveStoreConfig, STORE_CONFIG_UPDATED_EVENT } from '../services/storeConfigService';
 
 interface NavbarProps {
   isAdmin: boolean;
@@ -36,6 +37,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, signInWithGoogle, logout } = useAuth();
+  const [storeConfig, setStoreConfig] = useState(() => getActiveStoreConfig());
+
+  React.useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setStoreConfig(e.detail);
+      else setStoreConfig(getActiveStoreConfig());
+    };
+    window.addEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home' },

@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Phone, MessageCircle, Clock, ShieldCheck, Navigation, ExternalLink } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Clock, ShieldCheck, Navigation, ExternalLink, Globe, Star } from 'lucide-react';
 import { STORE_INFO } from '../types';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
+import { getActiveStoreConfig, STORE_CONFIG_UPDATED_EVENT } from '../services/storeConfigService';
 
 export const ContactSection: React.FC = () => {
+  const [storeConfig, setStoreConfig] = useState(() => getActiveStoreConfig());
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) setStoreConfig(e.detail);
+      else setStoreConfig(getActiveStoreConfig());
+    };
+    window.addEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(STORE_CONFIG_UPDATED_EVENT, handleUpdate);
+  }, []);
   return (
     <section id="location" className="py-16 sm:py-20 bg-neutral-950 border-t border-neutral-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,10 +54,11 @@ export const ContactSection: React.FC = () => {
                     </p>
                     <div className="pt-2">
                       <a
-                        href={STORE_INFO.googleMapsUrl}
+                        href={storeConfig.googleMapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors shadow-sm"
+                        id="contact-directions-btn"
                       >
                         <Navigation className="w-3.5 h-3.5" />
                         <span>Get Directions on Google Maps</span>
@@ -191,7 +203,7 @@ export const ContactSection: React.FC = () => {
                   <span className="text-xs text-neutral-400">Israna, Panipat, Haryana</span>
                 </div>
                 <a
-                  href={STORE_INFO.googleMapsUrl}
+                  href={storeConfig.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-amber-400 font-bold hover:underline"
@@ -217,19 +229,25 @@ export const ContactSection: React.FC = () => {
                     <div className="w-5 h-5 rounded bg-amber-500 flex items-center justify-center text-neutral-950 font-black text-[10px]">
                       AD
                     </div>
-                    <h4 className="text-xs font-extrabold text-white">AD Nutrition Hub Israna</h4>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-white">AD Nutrition Hub Israna</h4>
+                      <div className="flex items-center gap-1 text-[10px] text-amber-400">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        <span>{storeConfig.googleRating} on Google ({storeConfig.googleReviewsCount}+ reviews)</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-400">
+                  <p className="text-[11px] text-neutral-400 mt-1">
                     Mandi Mor, Main Highway, Israna, Panipat.
                   </p>
                   <a
-                    href={STORE_INFO.googleMapsUrl}
+                    href={storeConfig.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold transition-colors"
                   >
                     <Navigation className="w-3.5 h-3.5" />
-                    <span>Navigate Here</span>
+                    <span>Navigate on Google Maps</span>
                   </a>
                 </div>
               </div>
