@@ -271,8 +271,7 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
   if (!isOpen || !product) return null;
 
   return (
-    <AnimatePresence>
-      <div 
+    <div 
         className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5"
         id="quick-order-modal-backdrop"
         onClick={(e) => {
@@ -895,6 +894,5 @@ Namaste Akshay Bhai! 🙏 Kripya is product ka stock reserve karein aur WhatsApp
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
   );
 };
