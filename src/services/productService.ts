@@ -140,6 +140,154 @@ export function deduplicateProducts(list: Product[]): Product[] {
   return Array.from(map.values());
 }
 
+/**
+ * Frees up non-essential cached items from localStorage to prevent quota exhaustion
+ */
+export function cleanupNonEssentialLocalStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      // Remove review caches if storage is congested
+      if (key.startsWith('ad_nutrition_reviews_cache_')) {
+        keysToRemove.push(key);
+      }
+      // Remove older temp/debug items
+      if (key.startsWith('ad_nutrition_temp_') || key.startsWith('ad_nutrition_debug_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch {}
+    });
+  } catch {}
+}
+
+/**
+ * Safely persists products to local and session caches without throwing QuotaExceededError
+ */
+export function saveProductsToCache(products: Product[]): void {
+  if (typeof window === 'undefined' || !products || !Array.isArray(products) || products.length === 0) {
+    return;
+  }
+
+  // 1. In-memory session cache for instant tab access
+  try {
+    (window as any).__AD_NUTRITION_PRODUCTS_CACHE__ = products;
+  } catch {}
+
+  // 2. Try saving full products directly if within safe size
+  try {
+    const fullSerialized = JSON.stringify(products);
+    if (fullSerialized.length < 1500000) {
+      localStorage.setItem(CACHE_KEY, fullSerialized);
+      return;
+    }
+  } catch {
+    // Quota exceeded or error, continue to mitigation
+  }
+
+  // 3. Clear non-essential keys to free storage space
+  cleanupNonEssentialLocalStorage();
+
+  // 4. Create lightweight offline copy by stripping huge inline data URIs (>10KB)
+  // Web URLs (Cloudinary, Unsplash, Firebase Storage) are preserved with full fidelity.
+  try {
+    const lightweightProducts: Product[] = products.map((prod) => {
+      let img = prod.imageUrl;
+      if (img && img.startsWith('data:image') && img.length > 10000) {
+        img = 'https://images.unsplash.com/photo-1579722820308-d74e571900a9?w=500&auto=format&fit=crop&q=60';
+      }
+      let gallery = prod.images;
+      if (Array.isArray(gallery) && gallery.length > 0) {
+        gallery = gallery
+          .map((g) => (g && g.startsWith('data:image') && g.length > 10000 ? '' : g))
+          .filter(Boolean);
+      }
+      return {
+        ...prod,
+        imageUrl: img,
+        images: gallery,
+      };
+    });
+
+    const lightSerialized = JSON.stringify(lightweightProducts);
+    localStorage.setItem(CACHE_KEY, lightSerialized);
+    return;
+  } catch {
+    // Still exceeded quota, attempt minimal catalog
+  }
+
+  try {
+    const minimal: Product[] = products.slice(0, 40).map((p) => ({
+      id: p.id,
+      name: p.name,
+      brand: p.brand,
+      category: p.category,
+      price: p.price,
+      originalPrice: p.originalPrice,
+      availability: p.availability || 'In Stock',
+      description: p.description || '',
+      imageUrl: p.imageUrl?.startsWith('data:') ? 'https://images.unsplash.com/photo-1579722820308-d74e571900a9?w=500&auto=format&fit=crop&q=60' : (p.imageUrl || ''),
+      createdAt: p.createdAt || new Date().toISOString()
+    }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(minimal));
+    return;
+  } catch {
+    // Local storage completely exhausted on this device
+  }
+
+  // 5. Fallback to sessionStorage
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(products.slice(0, 30)));
+  } catch {
+    console.info('Storage quota limit reached; operating safely with in-memory cache.');
+  }
+}
+
+/**
+ * Retrieves cached products from in-memory, localStorage, or sessionStorage
+ */
+export function getProductsFromCache(): Product[] | null {
+  if (typeof window === 'undefined') return null;
+
+  // 1. In-memory check
+  try {
+    const inMem = (window as any).__AD_NUTRITION_PRODUCTS_CACHE__;
+    if (Array.isArray(inMem) && inMem.length > 0) {
+      return inMem;
+    }
+  } catch {}
+
+  // 2. localStorage check
+  try {
+    const stored = localStorage.getItem(CACHE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {}
+
+  // 3. sessionStorage fallback
+  try {
+    const sessionStored = sessionStorage.getItem(CACHE_KEY);
+    if (sessionStored) {
+      const parsedSession = JSON.parse(sessionStored);
+      if (Array.isArray(parsedSession) && parsedSession.length > 0) {
+        return parsedSession;
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
 // Fetch products with Firestore priority and fallback to cache / local
 export async function fetchProducts(): Promise<Product[]> {
   // 1. Try Firestore if quota is not exceeded
@@ -153,7 +301,7 @@ export async function fetchProducts(): Promise<Product[]> {
           list.push({ ...(docSnap.data() as Product), id: docSnap.id });
         });
         const deduped = deduplicateProducts(list);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+        saveProductsToCache(deduped);
         return deduped;
       } else {
         // Empty in Firestore, seed defaults
@@ -179,7 +327,7 @@ export async function fetchProducts(): Promise<Product[]> {
       const data: Product[] = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const deduped = deduplicateProducts(data);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
+        saveProductsToCache(deduped);
         return deduped;
       }
     }
@@ -187,14 +335,11 @@ export async function fetchProducts(): Promise<Product[]> {
     console.warn('API fetch products fallback error:', err);
   }
 
-  // 3. Fallback to LocalStorage cache
+  // 3. Fallback to LocalStorage / Session cache
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return deduplicateProducts(parsed);
-      }
+    const cached = getProductsFromCache();
+    if (cached && cached.length > 0) {
+      return deduplicateProducts(cached);
     }
   } catch {
     // Ignore cache parse error
@@ -219,14 +364,18 @@ export function subscribeToProducts(
     return onSnapshot(
       colRef,
       (snapshot) => {
-        const prods: Product[] = [];
-        snapshot.forEach((docSnap) => {
-          prods.push({ ...(docSnap.data() as Product), id: docSnap.id });
-        });
-        const deduped = deduplicateProducts(prods);
-        if (deduped.length > 0) {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(deduped));
-          onUpdate(deduped);
+        try {
+          const prods: Product[] = [];
+          snapshot.forEach((docSnap) => {
+            prods.push({ ...(docSnap.data() as Product), id: docSnap.id });
+          });
+          const deduped = deduplicateProducts(prods);
+          if (deduped.length > 0) {
+            saveProductsToCache(deduped);
+            onUpdate(deduped);
+          }
+        } catch (snapshotProcessErr) {
+          console.warn('Error processing product snapshot updates:', snapshotProcessErr);
         }
       },
       (error) => {
@@ -356,7 +505,7 @@ export async function addProduct(productData: Omit<Product, 'id' | 'createdAt'>)
   try {
     const cached = await fetchProducts();
     const updatedList = deduplicateProducts([payload, ...cached.filter(p => p.id !== newId)]);
-    localStorage.setItem(CACHE_KEY, JSON.stringify(updatedList));
+    saveProductsToCache(updatedList);
   } catch {
     // Ignore cache write error
   }
@@ -483,7 +632,7 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
   // Update local cache
   if (index !== -1) {
     cached[index] = fullUpdated;
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+    saveProductsToCache(cached);
     return fullUpdated;
   }
 
@@ -521,7 +670,7 @@ export async function deleteProduct(id: string): Promise<boolean> {
   // Update cache
   const cached = await fetchProducts();
   const filtered = cached.filter(p => p.id !== id);
-  localStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
+  saveProductsToCache(filtered);
   return true;
 }
 
@@ -547,7 +696,7 @@ export async function resetToDefaultProducts(): Promise<Product[]> {
     }
   }
 
-  localStorage.setItem(CACHE_KEY, JSON.stringify(INITIAL_PRODUCTS));
+  saveProductsToCache(INITIAL_PRODUCTS);
   return INITIAL_PRODUCTS;
 }
 

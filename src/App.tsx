@@ -25,7 +25,8 @@ import {
   addProduct, 
   updateProduct, 
   deleteProduct, 
-  resetToDefaultProducts 
+  resetToDefaultProducts,
+  saveProductsToCache
 } from './services/productService';
 import { compressImage } from './utils/imageCompressor';
 import { useAuth } from './context/AuthContext';
@@ -58,6 +59,8 @@ import {
   VISITS_UPDATED_EVENT 
 } from './services/visitService';
 import { SiteVisitModal } from './components/SiteVisitModal';
+import { PopularSearches } from './components/PopularSearches';
+import { recordSearch } from './services/popularSearchService';
 import { 
   initAppThemes, 
   applyColorTheme, 
@@ -136,6 +139,15 @@ export default function App() {
     window.addEventListener(VISITS_UPDATED_EVENT, handleVisitsUpdated);
     return () => window.removeEventListener(VISITS_UPDATED_EVENT, handleVisitsUpdated);
   }, []);
+
+  // Record catalog search terms in local storage tracker with debounce
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 2) return;
+    const timer = setTimeout(() => {
+      recordSearch(searchQuery.trim());
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSelectColorTheme = (colorId: string) => {
     setCurrentColorTheme(colorId);
@@ -278,7 +290,7 @@ export default function App() {
             );
             if (isMounted) {
               setProducts(cleaned);
-              localStorage.setItem('ad_nutrition_products_cache_v1', JSON.stringify(cleaned));
+              saveProductsToCache(cleaned);
             }
           }
         }
@@ -702,6 +714,11 @@ export default function App() {
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim().length >= 2) {
+                    recordSearch(searchQuery.trim());
+                  }
+                }}
                 className={`w-full pl-10 pr-24 py-2.5 rounded-xl bg-neutral-950 border text-white text-xs sm:text-sm focus:outline-none placeholder-neutral-500 transition-all ${
                   isVoiceListening 
                     ? 'border-rose-500/80 ring-2 ring-rose-500/30' 
@@ -721,7 +738,12 @@ export default function App() {
                 )}
                 {/* Voice-to-Text Search Button */}
                 <VoiceSearchButton
-                  onTranscript={(transcript) => setSearchQuery(transcript)}
+                  onTranscript={(transcript) => {
+                    setSearchQuery(transcript);
+                    if (transcript.trim().length >= 2) {
+                      recordSearch(transcript.trim());
+                    }
+                  }}
                   onListeningChange={(listening) => setIsVoiceListening(listening)}
                 />
                 <button
@@ -766,6 +788,15 @@ export default function App() {
               </select>
             </div>
           </div>
+
+          {/* Popular Searches Bar (Local Storage Tracker) */}
+          <PopularSearches
+            currentSearchQuery={searchQuery}
+            onSelectSearch={(term) => {
+              setSearchQuery(term);
+            }}
+            onClearSearch={() => setSearchQuery('')}
+          />
 
           {/* Active Filter Tags */}
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400 pt-1 border-t border-neutral-800/60">

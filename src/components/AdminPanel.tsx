@@ -59,6 +59,12 @@ import {
   resetActiveStoreConfig, 
   GoogleSiteConfig 
 } from '../services/storeConfigService';
+import { 
+  getPopularSearches, 
+  resetPopularSearches, 
+  PopularSearchItem,
+  POPULAR_SEARCHES_UPDATED_EVENT 
+} from '../services/popularSearchService';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -152,6 +158,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       window.removeEventListener(SCAN_ANALYTICS_EVENT, handleUpdate);
     };
   }, [products, isOpen]);
+
+  // Popular Searches State
+  const [popularSearches, setPopularSearches] = useState<PopularSearchItem[]>(() => getPopularSearches(15));
+
+  React.useEffect(() => {
+    const handlePopularSearchesUpdate = () => {
+      setPopularSearches(getPopularSearches(15));
+    };
+    window.addEventListener(POPULAR_SEARCHES_UPDATED_EVENT, handlePopularSearchesUpdate);
+    return () => {
+      window.removeEventListener(POPULAR_SEARCHES_UPDATED_EVENT, handlePopularSearchesUpdate);
+    };
+  }, []);
 
   // Form State
   const [name, setName] = useState('');
@@ -1654,6 +1673,87 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Customer Popular Searches Tracker Card */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-800/80">
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-400" />
+                          <span>Customer Catalog Search Analytics</span>
+                          <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                            Local Storage Tracker
+                          </span>
+                        </h4>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          Most searched supplement keywords by store visitors, voice searches, and filter taps.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('medium');
+                          const defaults = resetPopularSearches();
+                          setPopularSearches(defaults.slice(0, 15));
+                          setFeedbackMessage({ type: 'success', text: 'Popular searches reset to default trending keywords!' });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-850 text-neutral-300 hover:text-white border border-neutral-800 text-xs font-semibold transition-colors self-start sm:self-auto"
+                        title="Reset popular searches to defaults"
+                      >
+                        <RefreshCw className="w-3 h-3 text-amber-400" />
+                        <span>Reset Search Stats</span>
+                      </button>
+                    </div>
+
+                    {popularSearches.length === 0 ? (
+                      <p className="text-xs text-neutral-500 italic py-2">No search terms recorded yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {popularSearches.map((item, idx) => {
+                          const maxCount = popularSearches[0]?.count || 1;
+                          const barWidth = Math.round((item.count / maxCount) * 100);
+
+                          return (
+                            <div 
+                              key={`admin-pop-search-${item.normalized}-${idx}`}
+                              className="p-3 rounded-xl bg-neutral-900/70 border border-neutral-800/90 flex flex-col justify-between space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                    idx === 0 
+                                      ? 'bg-amber-500 text-neutral-950' 
+                                      : idx === 1 
+                                      ? 'bg-neutral-300 text-neutral-900' 
+                                      : idx === 2 
+                                      ? 'bg-amber-800 text-amber-200' 
+                                      : 'bg-neutral-800 text-neutral-400'
+                                  }`}>
+                                    #{idx + 1}
+                                  </span>
+                                  <span className="text-xs font-bold text-white truncate" title={item.term}>
+                                    {item.term}
+                                  </span>
+                                </div>
+                                <span className="text-xs font-mono font-bold text-amber-400 shrink-0">
+                                  {item.count} {item.count === 1 ? 'search' : 'searches'}
+                                </span>
+                              </div>
+
+                              {/* Frequency Bar */}
+                              <div className="w-full bg-neutral-950 rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className="h-full bg-amber-500 rounded-full transition-all"
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
