@@ -180,32 +180,35 @@ export function saveProductsToCache(products: Product[]): void {
     (window as any).__AD_NUTRITION_PRODUCTS_CACHE__ = products;
   } catch {}
 
-  // 2. Try saving full products directly if within safe size
+  // 2. Try saving full products directly if within safe size (< 800KB)
   try {
     const fullSerialized = JSON.stringify(products);
-    if (fullSerialized.length < 1500000) {
+    if (fullSerialized.length < 800000) {
       localStorage.setItem(CACHE_KEY, fullSerialized);
       return;
     }
   } catch {
     // Quota exceeded or error, continue to mitigation
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch {}
   }
 
   // 3. Clear non-essential keys to free storage space
   cleanupNonEssentialLocalStorage();
 
-  // 4. Create lightweight offline copy by stripping huge inline data URIs (>10KB)
+  // 4. Create lightweight offline copy by stripping huge inline data URIs (>5KB)
   // Web URLs (Cloudinary, Unsplash, Firebase Storage) are preserved with full fidelity.
   try {
     const lightweightProducts: Product[] = products.map((prod) => {
       let img = prod.imageUrl;
-      if (img && img.startsWith('data:image') && img.length > 10000) {
+      if (img && img.startsWith('data:image') && img.length > 5000) {
         img = 'https://images.unsplash.com/photo-1579722820308-d74e571900a9?w=500&auto=format&fit=crop&q=60';
       }
       let gallery = prod.images;
       if (Array.isArray(gallery) && gallery.length > 0) {
         gallery = gallery
-          .map((g) => (g && g.startsWith('data:image') && g.length > 10000 ? '' : g))
+          .map((g) => (g && g.startsWith('data:image') && g.length > 5000 ? '' : g))
           .filter(Boolean);
       }
       return {
@@ -216,6 +219,9 @@ export function saveProductsToCache(products: Product[]): void {
     });
 
     const lightSerialized = JSON.stringify(lightweightProducts);
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch {}
     localStorage.setItem(CACHE_KEY, lightSerialized);
     return;
   } catch {
@@ -223,7 +229,7 @@ export function saveProductsToCache(products: Product[]): void {
   }
 
   try {
-    const minimal: Product[] = products.slice(0, 40).map((p) => ({
+    const minimal: Product[] = products.slice(0, 30).map((p) => ({
       id: p.id,
       name: p.name,
       brand: p.brand,
@@ -231,10 +237,13 @@ export function saveProductsToCache(products: Product[]): void {
       price: p.price,
       originalPrice: p.originalPrice,
       availability: p.availability || 'In Stock',
-      description: p.description || '',
+      description: (p.description || '').slice(0, 200),
       imageUrl: p.imageUrl?.startsWith('data:') ? 'https://images.unsplash.com/photo-1579722820308-d74e571900a9?w=500&auto=format&fit=crop&q=60' : (p.imageUrl || ''),
       createdAt: p.createdAt || new Date().toISOString()
     }));
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch {}
     localStorage.setItem(CACHE_KEY, JSON.stringify(minimal));
     return;
   } catch {
@@ -243,7 +252,8 @@ export function saveProductsToCache(products: Product[]): void {
 
   // 5. Fallback to sessionStorage
   try {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify(products.slice(0, 30)));
+    sessionStorage.removeItem(CACHE_KEY);
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(products.slice(0, 20)));
   } catch {
     console.info('Storage quota limit reached; operating safely with in-memory cache.');
   }
@@ -396,7 +406,11 @@ export function subscribeToProducts(
         }
 
         if ((error as any)?.code === 'permission-denied') {
-          handleFirestoreError(error, OperationType.GET, PRODUCTS_COLLECTION);
+          try {
+            handleFirestoreError(error, OperationType.GET, PRODUCTS_COLLECTION);
+          } catch (permErr) {
+            console.warn('Firestore onSnapshot permission-denied handled:', permErr);
+          }
         } else {
           console.warn('Firestore onSnapshot notice:', errMsg);
           if (onError) {

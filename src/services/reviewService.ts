@@ -143,7 +143,11 @@ export function subscribeToProductReviews(
           return;
         }
         if ((error as any)?.code === 'permission-denied') {
-          handleFirestoreError(error, OperationType.GET, `products/${productId}/${REVIEWS_SUBCOLLECTION}`);
+          try {
+            handleFirestoreError(error, OperationType.GET, `products/${productId}/${REVIEWS_SUBCOLLECTION}`);
+          } catch (permErr) {
+            console.warn(`Firestore onSnapshot reviews permission-denied for ${productId}:`, permErr);
+          }
         } else {
           console.warn(`Firestore onSnapshot reviews notice for ${productId}:`, error);
           if (onError) onError(error);
